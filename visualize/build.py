@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 
 from visualize.diffparse import parse
-from visualize.workspace import Workspace, fetch
+from visualize.workspace import fetch
 
 ASSETS = Path(__file__).resolve().parent.parent / "assets"
 VENDOR = ASSETS / "vendor"
@@ -126,19 +126,21 @@ def render(page: dict, repo: str = "") -> str:
     return html.replace("/*PAGE*/", json.dumps(page).replace("</", "<\\/"))
 
 
-def build(ws: Workspace, out: Path | None = None) -> Path:
-    """Write the page HTML (default: workspace/page.html) and return its path."""
-    page = ws.read_json("page.json")
-    refs = ws.refs
-    page.update({
-        "base_sha": refs["base"], "head_sha": refs["head"],
-        "diff": parse(ws.path("pr.diff").read_text()),
-        "defdiff": ws.read_json("defdiff.json"),
-        "inputs": ws.read_json("signatures.json"),
-        "contract_cards": _contract_cards(ws.repo, refs["head"], ws.read_json("contracts.json")) if page.get("show_contract", True) else [],
-    })
-    page.setdefault("url", f"https://github.com/{ws.repo}/pull/{ws.number}")
-    page.setdefault("number", ws.number)
-    target = out or ws.path("page.html")
-    target.write_text(render(page, ws.repo))
-    return target
+def from_facts(page: dict, facts_dir: Path) -> str:
+    """Merge a facts folder into the page (diffs, definitions, signatures, interface cards); returns the repo."""
+    facts = json.loads((facts_dir / "facts.json").read_text())
+    repo = facts["repo"]
+    page.update({"base_sha": facts["base"], "head_sha": facts["head_sha"]})
+    if facts["kind"] == "code":
+        code = json.loads((facts_dir / "code.json").read_text())
+        page.update({"mode": page.get("mode", "code"), "defdiff": code["definitions"], "sources": {**code["sources"], **page.get("sources", {})}})
+    else:
+        read = lambda name: json.loads((facts_dir / name).read_text())
+        page.update({"diff": parse((facts_dir / "change.diff").read_text()), "defdiff": read("defdiff.json"),
+                     "inputs": read("signatures.json"),
+                     "contract_cards": _contract_cards(repo, facts["head"], read("contracts.json")) if page.get("show_contract", True) else []})
+        if facts.get("number"):
+            page.setdefault("number", facts["number"])
+    page.setdefault("url", facts["url"] or f"https://github.com/{repo}/tree/{facts['head_sha']}")
+    page.setdefault("source_label", facts["label"])
+    return repo

@@ -1,45 +1,9 @@
-"""Per-PR workspace on disk and read-only GitHub access through the `gh` CLI."""
+"""Workspaces on disk and file access: local git first, read-only GitHub (`gh`) only when the code is not local."""
 
-import json
 import subprocess
-from dataclasses import dataclass
 from pathlib import Path
 
 CACHE_ROOT = Path.home() / ".cache" / "visualize"
-
-
-@dataclass(frozen=True)
-class Workspace:
-    """Files for one PR: `~/.cache/visualize/<owner>__<repo>/<number>/`."""
-
-    repo: str
-    number: int
-
-    @property
-    def dir(self) -> Path:
-        """Workspace directory (created on first use)."""
-        path = CACHE_ROOT / self.repo.replace("/", "__") / str(self.number)
-        path.mkdir(parents=True, exist_ok=True)
-        return path
-
-    def path(self, name: str) -> Path:
-        """Path of a workspace file."""
-        return self.dir / name
-
-    def read_json(self, name: str):
-        """Load a JSON workspace file."""
-        return json.loads(self.path(name).read_text())
-
-    def write_json(self, name: str, data) -> Path:
-        """Write a JSON workspace file (indented, UTF-8)."""
-        target = self.path(name)
-        target.write_text(json.dumps(data, indent=1, ensure_ascii=False))
-        return target
-
-    @property
-    def refs(self) -> dict:
-        """`{"base": merge_base_sha, "head": head_sha}` written by `prepare`."""
-        return self.read_json("refs.json")
 
 
 def gh(*args: str) -> str:
@@ -64,11 +28,46 @@ def default_repo() -> str:
         raise RuntimeError("not inside a GitHub repository: run from the repo's working directory or pass --repo owner/name") from error
 
 
+WORKTREE = "WORKTREE"  # ref meaning "the files on disk now" (uncommitted changes included)
+_local: dict = {"root": None, "commits": {}, "reads": {"local": 0, "github": 0}}
+
+
+def use_local(root: Path | None) -> None:
+    """Read files from this checkout whenever the requested commit exists in it (set once per run)."""
+    _local["root"] = root
+
+
+def has_commit(ref: str) -> bool:
+    """True when `ref` resolves to a commit in the local checkout."""
+    root = _local["root"]
+    if not root or not ref:
+        return False
+    if ref not in _local["commits"]:
+        result = subprocess.run(["git", "cat-file", "-e", f"{ref}^{{commit}}"], cwd=root, capture_output=True)
+        _local["commits"][ref] = result.returncode == 0
+    return _local["commits"][ref]
+
+
+def read_counts() -> dict:
+    """How many file reads were served locally vs from GitHub in this run."""
+    return dict(_local["reads"])
+
+
 def fetch(repo: str, path: str, ref: str) -> str | None:
-    """File content at `ref`, cached under the cache root; None when it does not exist there."""
+    """File content at `ref` (None when absent there): disk for WORKTREE, local git when the commit is local, else GitHub."""
+    root = _local["root"]
+    if ref == WORKTREE and root:
+        _local["reads"]["local"] += 1
+        full = root / path
+        return full.read_text(errors="replace") if full.is_file() else None
+    if has_commit(ref):
+        _local["reads"]["local"] += 1
+        result = subprocess.run(["git", "show", f"{ref}:{path}"], cwd=root, capture_output=True, text=True, errors="replace")
+        return result.stdout if result.returncode == 0 else None
     cache = CACHE_ROOT / "_files" / repo.replace("/", "__") / ref[:12] / path
     if cache.exists():
         return cache.read_text()
+    _local["reads"]["github"] += 1
     result = subprocess.run(["gh", "api", "-H", "Accept: application/vnd.github.raw", f"repos/{repo}/contents/{path}?ref={ref}"],
                             capture_output=True, text=True)
     if result.returncode != 0:

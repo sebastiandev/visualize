@@ -1,19 +1,16 @@
-"""`visualize` — explain a PR, or present a proposal, as a self-contained interactive HTML page.
+"""`visualize` — explain code, a change or a design as one self-contained interactive HTML page.
 
-    visualize explain --pr <n> [--repo owner/name] [--refresh]   reader mode: explain someone else's PR (bare <n> works)
-    visualize explain --code <path[::Symbol]>                 reader mode: explain a part of the code (no PR)
-    visualize render <page.json> [--out FILE]                render any page you wrote (free-form; cites resolve in the repo)
-    visualize present <name> [--out FILE]                    author mode: show a proposal / design
-    visualize config                                         show the merged config and its sources
-    visualize design                                         show design tokens and how to override them
-    visualize kinds                                          list visualization kinds (plugin folders)
-    visualize install | uninstall                            link this repo into ~/.agents and ~/.local/bin
+    visualize facts --local [--base REF]                 facts for your branch + uncommitted work (default)
+    visualize facts --diff FILE|- --base REF [--head REF] facts for a diff you already have
+    visualize facts --pr N                               facts for a PR (local git when its commits are here, else GitHub)
+    visualize facts --code PATH[::Symbol]                facts for a part of the code (no change)
+    visualize suggest [FACTS_DIR | --brief TEXT]         shortlist of kinds for the doc (Jev scores when available)
+    visualize explain DOC.json [--facts DIR] [-o FILE] [--keep-versions]   render + check → the HTML page
+    visualize kinds | config | design                    list kinds · merged config · design tokens
+    visualize install | uninstall                        link this repo into ~/.agents and ~/.local/bin
 
-Each command does what its state needs:
-  1st run  → sets up the workspace (explain: gathers facts from the PR) and says what page.json must contain
-  2nd run  → page.json exists: renders the page and checks it (exit 3 = something to fix)
-
-page.json is written by the agent following the `visualize` skill (references/page-format.md).
+The agent loop: facts → suggest → write the doc (visualize skill) → explain. `explain` is the only command that
+writes HTML; exit 0 = ok, 3 = the check found something to fix (JSON report), 1 = error.
 """
 
 import argparse
@@ -23,46 +20,10 @@ import subprocess
 import sys
 from pathlib import Path
 
-from visualize.build import ASSETS, build, render
-from visualize.contracts import delta
-from visualize.definitions import defdiff, signatures
-from visualize.config import load as load_config
-from visualize.workspace import CACHE_ROOT, Workspace, default_repo, gh
-
-
-
-def gather_facts(ws: Workspace) -> dict:
-    """PR metadata + diff, merge-base, contract delta, definition diff and signatures → workspace files."""
-    meta = json.loads(gh("pr", "view", str(ws.number), "-R", ws.repo, "--json",
-                         "number,title,body,url,author,files,baseRefOid,headRefOid,state,isDraft,additions,deletions,changedFiles"))
-    ws.write_json("pr.json", meta)
-    ws.path("pr.diff").write_text(gh("pr", "diff", str(ws.number), "-R", ws.repo))
-    head = meta["headRefOid"]
-    # Compare against the merge-base, never the current base tip: commits merged after branching would look like removals.
-    base = gh("api", f"repos/{ws.repo}/compare/{meta['baseRefOid']}...{head}", "-q", ".merge_base_commit.sha").strip()
-    ws.write_json("refs.json", {"base": base, "head": head, "base_tip": meta["baseRefOid"]})
-    cfg = load_config()
-    ws.write_json("config.json", {"sources": cfg.sources, "config": cfg.data})
-    paths = [f["path"] for f in meta["files"]]
-    code = [p for p in paths if p.endswith(".py") and not cfg.is_test(p) and not cfg.is_generated(p)]
-    contracts = delta(ws.repo, [p for p in paths if not cfg.is_test(p)], base, head, cfg)
-    ws.write_json("contracts.json", contracts)
-    defs = defdiff(ws.repo, code, base, head)
-    ws.write_json("defdiff.json", defs)
-    ws.write_json("signatures.json", signatures(ws.repo, defs, head, set(paths), cfg.introspection))
-    from collections import Counter
-    from visualize import jev
-    kind_hints = jev.hints({
-        "pull_request": {"title": meta["title"], "description": (meta.get("body") or "")[:2000]},
-        "facts": {"layers": dict(Counter(cfg.layer(p) for p in paths)), "files": len(paths),
-                  "additions": meta["additions"], "deletions": meta["deletions"],
-                  "interface_changes": len(contracts), "breaking": sum(e["breaking"] is True for e in contracts),
-                  "changed_definitions": [f'{d["change"]} {d["name"]}' for d in defs][:40]},
-        "file_paths": paths}, cfg, "pull request")
-    if kind_hints:
-        ws.write_json("kind_hints.json", kind_hints)
-    return {"kind_hints": jev.summary(kind_hints), "title": meta["title"], "files": len(paths), "definitions": len(defs), "contract_entries": len(contracts),
-            "breaking": sum(e["breaking"] is True for e in contracts), "merge_base_differs_from_tip": base != meta["baseRefOid"], "config": cfg.sources}
+from visualize.build import ASSETS, from_facts, render
+from visualize.config import load as load_config, repo_root
+from visualize.definitions import definitions, signatures
+from visualize.workspace import default_repo, use_local
 
 
 def run_check(html: Path, shots: Path) -> int:
@@ -73,33 +34,8 @@ def run_check(html: Path, shots: Path) -> int:
     return result.returncode
 
 
-def explain(pr: int, repo: str, refresh: bool, out: Path | None) -> int:
-    """Reader mode for a PR: gather facts on first run (or --refresh); render + check once page.json exists."""
-    ws = Workspace(repo, pr)
-    if refresh or not ws.path("refs.json").exists():
-        print(json.dumps(gather_facts(ws), indent=1, ensure_ascii=False))
-    if not ws.path("page.json").exists():
-        print(f"workspace: {ws.dir}\nnext: write page.json there (visualize skill), then run `visualize explain {pr}` again")
-        return 0
-    html = build(ws, out)
-    print(f"page: {html}")
-    return run_check(html, ws.path("screens"))
-
-
-def _snapshot(work: Path, page_text: str, html_text: str) -> int:
-    """Keep page.vN.json/.html for every changed render; returns the current version number."""
-    versions = sorted(int(m.group(1)) for p in work.glob("page.v*.json") if (m := re.match(r"page\.v(\d+)\.json$", p.name)))
-    if versions and (work / f"page.v{versions[-1]}.json").read_text() == page_text:
-        return versions[-1]  # unchanged since the last render
-    n = (versions[-1] + 1) if versions else 1
-    (work / f"page.v{n}.json").write_text(page_text)
-    (work / f"page.v{n}.html").write_text(html_text)
-    return n
-
-
 def load_cited(page_text: str, root: Path, sources: dict, defs: list) -> None:
-    """Add every `path:line`-cited .py file from the working tree to `sources` (+ its definitions to `defs`)."""
-    from visualize.definitions import definitions
+    """Add every `path:line`-cited file from the working tree to `sources` (+ its Python definitions to `defs`)."""
     cited = set(re.findall(r'"(?:test:\s*)?((?:[\w.\-]+/)+[\w.\-]+\.\w+):\d+(?:-\d+)?"', page_text))
     for f in sorted(cited - set(sources)):
         if (root / f).is_file():
@@ -113,139 +49,113 @@ def load_cited(page_text: str, root: Path, sources: dict, defs: list) -> None:
                     pass
 
 
-def render_page(page_path: Path, repo: str | None, out: Path | None) -> int:
-    """Render any agent-written page.json; code panels come from files it cites in the current working tree."""
-    from visualize.config import repo_root
-    page_text = page_path.read_text()
-    page = json.loads(page_text)
+def _snapshot(doc: Path, doc_text: str, html_text: str) -> int:
+    """Keep <doc>.vN.json/.html for every changed render; returns the current version number."""
+    stem = doc.with_suffix("").name
+    versions = sorted(int(m.group(1)) for p in doc.parent.glob(f"{stem}.v*.json") if (m := re.match(rf"{re.escape(stem)}\.v(\d+)\.json$", p.name)))
+    if versions and (doc.parent / f"{stem}.v{versions[-1]}.json").read_text() == doc_text:
+        return versions[-1]
+    n = (versions[-1] + 1) if versions else 1
+    (doc.parent / f"{stem}.v{n}.json").write_text(doc_text)
+    (doc.parent / f"{stem}.v{n}.html").write_text(html_text)
+    return n
+
+
+def explain(doc: Path, facts_dir: Path | None, out: Path | None, keep_versions: bool, repo: str | None) -> int:
+    """Render one doc (+ optional facts folder) into a checked HTML page, in one call."""
+    doc_text = doc.read_text()
+    page = json.loads(doc_text)
     root = repo_root()
+    use_local(root)
+    if facts_dir:
+        repo = repo or from_facts(page, facts_dir)
     sources, defs = dict(page.get("sources") or {}), list(page.get("defdiff") or [])
     if root:
-        load_cited(page_text, root, sources, defs)
-        head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, capture_output=True, text=True).stdout.strip()
-        page.setdefault("head_sha", head)
-        page.setdefault("base_sha", head)
-    page.setdefault("mode", "code" if sources else "proposal")
+        load_cited(doc_text, root, sources, defs)
+        if not facts_dir:
+            head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, capture_output=True, text=True).stdout.strip()
+            page.setdefault("head_sha", head)
+            page.setdefault("base_sha", head)
     page["sources"], page["defdiff"] = sources, defs
-    repo = repo or (default_repo() if root else "")
-    if repo and defs:
-        page.setdefault("inputs", signatures(repo, defs, page.get("head_sha", ""), set(), ""))
-    html = out or page_path.with_suffix(".html")
-    html.write_text(render(page, repo))
-    print(f"page: {html}")
+    page.setdefault("mode", "pr" if page.get("diff") else "code" if sources else "proposal")
+    if not repo and root:
+        try:
+            repo = default_repo()
+        except RuntimeError:
+            repo = ""
+    if repo and defs and not page.get("inputs"):
+        page["inputs"] = signatures(repo, [d for d in defs if d.get("after")], page.get("head_sha", ""), set(), "")
+    html = out or doc.with_suffix(".html")
+    html_text = render(page, repo or "")
+    html.write_text(html_text)
+    version = f"  (version v{_snapshot(doc, doc_text, html_text)})" if keep_versions else ""
+    print(f"page: {html}{version}")
     return run_check(html, html.parent / (html.stem + "-screens"))
 
 
-def explain_code(target: str, repo: str | None, out: Path | None) -> int:
-    """Reader mode for code (no PR): gather code facts once; render + check once page.json exists."""
-    from visualize.codefacts import gather
-    from visualize.config import repo_root
-    root = repo_root()
-    if not root:
-        raise RuntimeError("explain --code must run inside the repo that contains the code")
-    repo = repo or default_repo()
-    slug = re.sub(r"[^A-Za-z0-9]+", "-", target).strip("-")[:80]
-    work = CACHE_ROOT / repo.replace("/", "__") / "code" / slug
-    work.mkdir(parents=True, exist_ok=True)
-    facts_path = work / "facts.json"
-    if not facts_path.exists():
-        cfg = load_config()
-        facts = gather(root, target, cfg)
-        facts_path.write_text(json.dumps(facts, indent=1))
-        from visualize import jev
-        kind_hints = jev.hints({"code": {"target": target, "definitions": [d["name"] for d in facts["definitions"]][:60],
-                                         "layers": facts["layers"], "callers": len(facts["callers"]), "tests": len(facts["tests"])},
-                                "file_paths": facts["files"]}, cfg, "part of the code")
-        if kind_hints:
-            (work / "kind_hints.json").write_text(json.dumps(kind_hints, indent=1))
-        print(json.dumps({"kind_hints": jev.summary(kind_hints), "target": target, "files": facts["files"], "definitions": len(facts["definitions"]),
-                          "callers": len(facts["callers"]), "tests": len(facts["tests"]), "config": cfg.sources}, indent=1))
-    page_json = work / "page.json"
-    if not page_json.exists():
-        print(f"workspace: {work}\nnext: write page.json there (visualize skill, mode \"code\"), then run `visualize explain --code {target}` again")
-        return 0
-    facts = json.loads(facts_path.read_text())
-    page = json.loads(page_json.read_text())
-    load_cited(page_json.read_text(), root, facts["sources"], facts["definitions"])
-    page.update({"mode": "code", "head_sha": facts["head"], "base_sha": facts["head"], "defdiff": facts["definitions"],
-                 "sources": facts["sources"], "inputs": signatures(repo, facts["definitions"], facts["head"], set(), "")})
-    page.setdefault("url", f"https://github.com/{repo}/blob/{facts['head']}/{facts['files'][0]}" if facts["files"] else "")
-    page.setdefault("source_label", f"{target} @ {facts['head'][:10]}")
-    html = work / "page.html"
-    html.write_text(render(page, repo))
-    if out:
-        out.write_text(html.read_text())
-    print(f"page: {out or html}")
-    return run_check(html, work / "screens")
-
-
-def present(name: str, out: Path | None, history: bool) -> int:
-    """Author mode: page.json + decisions.json in the workspace; every changed render is kept as page.vN.*."""
-    slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
-    work = CACHE_ROOT / "_present" / slug
-    work.mkdir(parents=True, exist_ok=True)
-    decisions = work / "decisions.json"
-    if not decisions.exists():
-        # Iteration memory: questions asked + answers, author suggestions, resolved conflicts. Read before every round.
-        decisions.write_text(json.dumps({"questions": [], "suggestions": [], "conflicts": []}, indent=1))
-    if history:
-        for p in sorted(work.glob("page.v*.html"), key=lambda p: int(re.search(r"v(\d+)", p.name).group(1))):
-            print(p)
-        print(f"decisions: {decisions}")
-        return 0
-    page_json = work / "page.json"
-    if not page_json.exists():
-        print(f"workspace: {work}\nnext: write page.json (mode \"proposal\") and log questions/answers/suggestions in decisions.json,"
-              f" then run `visualize present {name}` again")
-        return 0
-    page_text = page_json.read_text()
-    page = json.loads(page_text)
-    page.setdefault("mode", "proposal")
-    html_text = render(page)
-    html = work / "page.html"
-    html.write_text(html_text)
-    if out:
-        out.write_text(html_text)
-    version = _snapshot(work, page_text, html_text)
-    print(f"page: {out or html}  (version v{version}; history: `visualize present {name} --history`)")
-    return run_check(html, work / "screens")
+def suggest(facts_dir: Path | None, brief: str | None) -> int:
+    """Kinds with their 'Use when' rule; scored by Jev when a key is available."""
+    from visualize import jev
+    from visualize.kinds import discover
+    cfg = load_config()
+    if facts_dir:
+        f = json.loads((facts_dir / "facts.json").read_text())
+        state = {"change" if f["kind"] == "change" else "code": {"title": f["title"], "description": f["description"], **f["summary"]},
+                 "file_paths": f["file_paths"]}
+        mode = "change" if f["kind"] == "change" else "part of the code"
+    else:
+        state, mode = {"design_brief": (brief or "")[:4000]}, "design proposal"
+    scored = {h["kind"]: h for h in (jev.hints(state, cfg, mode) or {}).get("kinds", [])}
+    rows = [{"kind": name, "p": scored.get(name, {}).get("p"), "band": scored.get(name, {}).get("band"),
+             "use_when": jev.use_when(k.read("guideline.md")), "guideline": str(k.dir / "guideline.md")}
+            for name, k in discover().items()]
+    rows.sort(key=lambda r: -(r["p"] or 0))
+    print(json.dumps({"scored_by": "jev" if scored else None, "kinds": rows,
+                      "note": "Shortlist only: you decide. Explain disagreements with a 'suggest' in diagram_decisions."},
+                     indent=1, ensure_ascii=False))
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point."""
     ap = argparse.ArgumentParser(prog="visualize", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="command", required=True)
-    ex = sub.add_parser("explain", help="explain a PR (--pr) or a part of the code (--code) — reader mode")
-    ex.add_argument("number", type=int, nargs="?", help="shorthand for --pr")
-    ex.add_argument("--pr", type=int, default=None)
-    ex.add_argument("--code", default=None, help="path[::Symbol[.method]] in the current repo")
-    ex.add_argument("--repo", default=None, help="owner/name (default: repo of the current directory)")
-    ex.add_argument("--refresh", action="store_true", help="re-gather facts (PR got new commits)")
-    ex.add_argument("--out", type=Path, default=None, help="also write the page here")
-    rd = sub.add_parser("render", help="render any page.json you wrote (free-form explanation); cites resolve in the current repo")
-    rd.add_argument("page", type=Path)
-    rd.add_argument("--repo", default=None)
-    rd.add_argument("--out", type=Path, default=None)
-    pr_ = sub.add_parser("present", help="present a proposal / design (author mode)")
-    pr_.add_argument("name", help="proposal name, e.g. inventory-segmentation")
-    pr_.add_argument("--out", type=Path, default=None, help="also write the page here")
-    pr_.add_argument("--history", action="store_true", help="list rendered versions and the decisions log")
+    fa = sub.add_parser("facts", help="gather facts about a change (--local default, --diff, --pr) or code (--code)")
+    src = fa.add_mutually_exclusive_group()
+    src.add_argument("--local", action="store_true", help="current branch + uncommitted work (default)")
+    src.add_argument("--diff", help="unified diff file, or - for stdin")
+    src.add_argument("--pr", type=int)
+    src.add_argument("--code", help="PATH[::Symbol[.method]] in the current repo")
+    fa.add_argument("--base", help="ref to compare against (--local: default branch; --diff: required)")
+    fa.add_argument("--head", help="--diff only: ref the diff ends at (default: working tree)")
+    fa.add_argument("--title", help="title for --local/--diff (default: branch name)")
+    fa.add_argument("--body-file", help="description for --local/--diff")
+    fa.add_argument("--repo", help="owner/name (default: the repo of the current directory)")
+    fa.add_argument("-o", "--out", type=Path, help="facts folder (default: ~/.cache/visualize/<repo>/<key>/facts)")
+    sg = sub.add_parser("suggest", help="shortlist kinds for a facts folder or a design brief")
+    sg.add_argument("facts", type=Path, nargs="?")
+    sg.add_argument("--brief", help="design brief text (present / proposal docs)")
+    ex = sub.add_parser("explain", help="render a doc (+ facts) into a checked HTML page")
+    ex.add_argument("doc", type=Path)
+    ex.add_argument("--facts", type=Path, help="facts folder from `visualize facts`")
+    ex.add_argument("-o", "--out", type=Path, help="HTML path (default: next to the doc)")
+    ex.add_argument("--keep-versions", action="store_true", help="keep <doc>.vN.json/.html for every changed render")
+    ex.add_argument("--repo", help="owner/name for links (default: from facts or the current repo)")
+    sub.add_parser("kinds", help="list kinds (plugin folders) and where they come from")
     sub.add_parser("config", help="show the merged config and where it came from")
-    sub.add_parser("kinds", help="list visualization kinds (plugin folders) and where they come from")
     sub.add_parser("design", help="show design tokens (defaults + overrides) and how to override them")
     sub.add_parser("install", help="link this repo into ~/.agents/{tools,skills} and ~/.local/bin")
     sub.add_parser("uninstall", help="remove those links")
     args = ap.parse_args(argv)
     if args.command == "kinds":
-        from visualize.kinds import BUILTIN, discover, search_dirs
+        from visualize.kinds import discover, search_dirs
         for name, kind in discover().items():
             print(f"{name:<16} {kind.dir}  — {kind.description}")
         print("search:", ", ".join(map(str, search_dirs())))
         return 0
     if args.command == "design":
         from visualize.design import __doc__ as how, defaults
-        over = load_config().data.get("design", {})
-        print(json.dumps({"defaults": defaults(), "overrides": over}, indent=1))
+        print(json.dumps({"defaults": defaults(), "overrides": load_config().data.get("design", {})}, indent=1))
         print(how)
         return 0
     if args.command == "config":
@@ -256,17 +166,16 @@ def main(argv: list[str] | None = None) -> int:
         from visualize.install import install, uninstall
         return install() if args.command == "install" else uninstall()
     try:
-        if args.command == "render":
-            return render_page(args.page, args.repo, args.out)
-        if args.command == "explain":
-            if args.code:
-                return explain_code(args.code, args.repo, args.out)
-            pr = args.pr or args.number
-            if not pr:
-                ap.error("explain needs --pr <number> or --code <path[::symbol]>")
-            return explain(pr, args.repo or default_repo(), args.refresh, args.out)
-        return present(args.name, args.out, args.history)
-    except RuntimeError as error:  # gh failures: unknown PR, no access, network
+        if args.command == "facts":
+            from visualize.facts import gather
+            out, f = gather(args, args.repo or default_repo())
+            print(json.dumps({"facts": str(out), "source": f["source"], "title": f["title"], "summary": f["summary"],
+                              "reads": f.get("reads")}, indent=1, ensure_ascii=False))
+            return 0
+        if args.command == "suggest":
+            return suggest(args.facts, args.brief)
+        return explain(args.doc, args.facts, args.out, args.keep_versions, args.repo)
+    except RuntimeError as error:  # git/gh failures, a diff that does not apply, missing refs
         print(f"visualize: {error}", file=sys.stderr)
         return 1
 

@@ -9,9 +9,21 @@ offline, have light/dark themes, foldable sections, GitHub-style diffs with synt
 ## Contents
 
 - [Install](#install) · [Agent installation guide](#agent-installation-guide)
-- [Commands](#commands): `render` · `explain --pr` · `explain --code` · `present` · `kinds` · `config` · `design`
+- [Output](#output) · [Commands](#commands): `facts` · `suggest` · `explain` · `kinds` · `config` · `design`
 - [Writing page.json](#writing-pagejson) · [Diagrams and kinds](#diagrams-and-kinds) · [Configuration](#configuration) · [Design tokens](#design-tokens)
 - [How it works](#how-it-works) · [Troubleshooting](#troubleshooting)
+
+## Output
+
+One **self-contained HTML file** per explanation, produced by `visualize explain <doc.json>` in a single call.
+The doc (the explanation itself) is written by an agent; the other commands help it get there:
+
+| Step | Command | Who | Produces |
+|---|---|---|---|
+| 1 | `visualize facts …` | tool | a facts folder: diff vs merge-base, changed definitions, interface changes |
+| 2 | `visualize suggest <facts>` | tool | a shortlist of diagram kinds (scored by Jev when configured) |
+| 3 | — | agent | `doc.json`: call path, explanations, tests, diagrams, all cited |
+| 4 | `visualize explain doc.json --facts <folder>` | tool | **the HTML page**, checked in headless Chrome |
 
 ## Install
 
@@ -47,42 +59,48 @@ Instructions for a coding agent asked to install visualize:
 4. **Verify**: `visualize --help` works from any directory, and `ls ~/.agents/skills/visualize/SKILL.md` exists.
    A new agent session is needed for the skill to be picked up.
 5. **Optional smoke test** inside any GitHub repo the user works on:
-   `visualize explain --pr <recent PR number>` should print a workspace path (facts gathered).
+   `visualize facts --pr <recent PR number>` should print a facts folder.
 6. Never commit, push or comment on GitHub while doing this; `visualize` itself is read-only on GitHub.
 
 ## Commands
 
 | Command | Purpose |
 |---|---|
-| `visualize render <page.json> [--out F] [--repo o/r]` | Render **any** page you (or the agent) wrote. Files cited as `path:line` load from the current repo. |
-| `visualize explain --pr <n> [--repo o/r] [--refresh]` | Reader mode for a PR: gathers facts, then renders once `page.json` exists. Bare `explain <n>` works too. |
-| `visualize explain --code <path[::Symbol]>` | Reader mode for a part of the code (no PR): sources, callers, tests. |
-| `visualize present <name> [--out F] [--history]` | Author mode for a design/proposal: versioned renders + decision log. |
-| `visualize kinds` | List diagram kinds (all plugin folders) and where each comes from. |
-| `visualize config` | Show the merged configuration and its sources. |
-| `visualize design` | Show design tokens and how to override them. |
+| `visualize facts --local [--base REF]` | Facts for the current branch + uncommitted/untracked work vs the merge-base with the default branch. **Default.** |
+| `visualize facts --diff FILE\|- --base REF [--head REF]` | Facts for a diff you already have; rejected if it doesn't match the files at those refs. |
+| `visualize facts --pr N [--repo o/r]` | Facts for a PR; reads local git when its commits are present, else GitHub. |
+| `visualize facts --code PATH[::Symbol]` | Facts for a part of the code (no change): sources, definitions, callers, tests. |
+| `visualize suggest [FACTS] [--brief TEXT]` | Diagram kinds with their "use when" rule, scored by Jev when available. |
+| `visualize explain DOC.json [--facts DIR] [-o FILE] [--keep-versions]` | Render + check → the HTML page. Without `--facts`, files cited as `path:line` load from the current repo. |
+| `visualize kinds` · `config` · `design` | List kinds · merged config · design tokens. |
 | `visualize install` / `uninstall` | Create / remove the symlinks. |
 
-Every page command renders and then runs the checks; exit code `0` = ok, `3` = something to fix (the JSON
-report says what), `1` = error (e.g. unknown PR).
+`facts` options for `--local`/`--diff`: `--title`, `--body-file`, `-o DIR` (default `~/.cache/visualize/<repo>/<key>/facts`).
+`explain` exit codes: `0` ok, `3` the check found something to fix (JSON report), `1` error.
 
 ### Minimal examples
 
-**Explain a PR** (run inside the repo):
+**Explain your current changes** (run inside the repo):
 ```bash
-visualize explain --pr 1234          # 1st run: gathers facts, prints the workspace path
-# agent writes page.json in that workspace (see the skill)
-visualize explain --pr 1234          # 2nd run: renders page.html and checks it
+visualize facts --local                       # prints the facts folder
+# agent writes doc.json (see the skill)
+visualize explain doc.json --facts ~/.cache/visualize/me__app/local-my-branch/facts
 ```
 
-**Explain a part of the code**:
+**Explain a PR you don't have locally**:
 ```bash
-visualize explain --code "app/billing/invoice.py::InvoiceBuilder"
+visualize facts --pr 1234
+visualize explain doc.json --facts ~/.cache/visualize/me__app/pr-1234/facts
 ```
 
-**Free-form explanation** (several modules, a concept, any structure):
+**A diff you already have**:
 ```bash
-cat > guard.page.json <<'EOF'
+git diff main... | visualize facts --diff - --base main
+```
+
+**Free-form explanation** (several modules, a concept, any structure), no facts needed:
+```bash
+cat > guard.json <<'EOF'
 {
   "title": "How the reprint guard works",
   "tldr": {"text": "Reprint only when a shipment row exists.", "ref": "app/prelabel/use_case.py:537"},
@@ -95,15 +113,13 @@ cat > guard.page.json <<'EOF'
   ]}
 }
 EOF
-visualize render guard.page.json      # → guard.page.html, with source panels for the cited files
+visualize explain guard.json                  # → guard.html, with source panels for the cited files
 ```
 
-**Present a design** (agent asks you a few questions first):
+**Present a design** (the agent asks you a few questions, then iterates):
 ```bash
-visualize present inventory-segmentation        # creates the workspace
-# agent writes page.json + logs questions/answers in decisions.json
-visualize present inventory-segmentation        # renders v1, v2, … on every change
-visualize present inventory-segmentation --history
+visualize suggest --brief "Reserve stock per sales channel…"
+visualize explain ~/.cache/visualize/_present/segmentation/doc.json --keep-versions   # v1, v2, … on every change
 ```
 
 ## Writing page.json
@@ -170,8 +186,8 @@ A repo-specific `.visualize.toml` you don't want to commit can be ignored locall
 
 ### Jev kind hints (optional)
 
-With a [TypeSafe](https://typesafe.ai) key, `explain` also asks Jev which diagram kinds fit the change and writes
-`kind_hints.json` (e.g. `decisions 0.89 suggest · sequence 0.34 skip`). The agent reads it as a shortlist and
+With a [TypeSafe](https://typesafe.ai) key, `visualize suggest` asks Jev which diagram kinds fit the change
+(e.g. `decisions 0.89 suggest · sequence 0.34 skip`). The agent reads it as a shortlist and
 still decides, giving a reason when it disagrees. Only a summary is sent (title, description, file paths,
 layers, counts), never file contents. Each kind's `## Use when` section becomes the question.
 
@@ -199,14 +215,14 @@ Unknown token names are reported and ignored.
 
 ## How it works
 
-1. **Facts** (deterministic): PR diff against the **merge-base**, interface delta (added / breaking / review),
+1. **Facts** (deterministic, local git first): diff against the **merge-base**, interface delta (added / breaking / review),
    definition diff and signatures — or, for code, sources, callers and tests.
 2. **Explanation** (agent): `page.json`, following the skill.
-3. **Render**: one HTML file with everything inlined (pinned D3 7.9 and highlight.js 11.10).
+3. **Explain** (render): one HTML file with everything inlined (pinned D3 7.9 and highlight.js 11.10).
 4. **Check** (headless Chrome): console errors, overflow (desktop/mobile), missing explanations, diff/source
    text integrity, diagram overlaps, per-kind problems.
 
-Workspaces live in `~/.cache/visualize/` (one folder per PR, code target, or presentation).
+Facts folders live in `~/.cache/visualize/<owner>__<repo>/<key>/facts` (`pr-N`, `local-<branch>`, `diff-<hash>`, `code-<target>`).
 
 ## Troubleshooting
 

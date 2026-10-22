@@ -1,6 +1,6 @@
 ---
 name: visualize
-description: Explain a pull request as a self-contained interactive HTML page — where it changed (call path with forks), per-node behaviour explanations, GitHub-style diffs, test matrix, interface changes, and sequence / decision / entity diagrams. Use when asked to visualize, explain, or diagram a PR or a change for a reviewer, or to make an "explain page" for a PR number.
+description: Explain code, a change (local branch, a diff you have, or a PR) or a design as a self-contained interactive HTML page — call path with forks, per-node explanations, GitHub-style diffs, test matrix, interface changes, diagrams. Use when asked to visualize, explain or diagram code, a PR or a change, or to present a design.
 ---
 
 # Visualize: a vocabulary for explaining code, changes and designs
@@ -22,17 +22,33 @@ rules, a comparison…).
 Hard rules, always: cite every claim (`path:line`, `test: path:line`, `base: path:line`, `label|url`, or
 `PR description`), never invent, and pass `check`.
 
-## Entry points
+## Commands — the loop is facts → suggest → doc → explain
 
 ```bash
-visualize render <page.json> [--out FILE]      # anything you wrote: free-form; cited files load from the repo
-visualize explain --pr <n>                     # shortcut: gathers PR facts (diff, merge-base, contracts, defs)
-visualize explain --code <path[::Symbol]>      # shortcut: gathers code facts (sources, callers, tests)
-visualize present <name>                       # author mode: brief → questions → narrative, versioned
+visualize facts --local [--base REF]              # 1. facts (pick the source below); prints the facts folder
+visualize suggest <facts-folder>                  # 2. shortlist of kinds (scored by Jev when configured)
+#                                                    3. you write the doc (page.json format, references/page-format.md)
+visualize explain <doc.json> --facts <folder>     # 4. render + check, one call → the HTML page
 ```
 
-Use `render` whenever the explanation doesn't fit one PR or one target (several modules, a concept, a mix
-of code and docs): write `page.json` anywhere, cite files with `path:line`, run it from inside the repo.
+`explain` is the only command that writes HTML. Exit 0 = ok, 3 = fix what the JSON report lists and run it
+again, 1 = error. Without `--facts` it renders any doc (free-form, several modules, a concept): files cited as
+`path:line` load from the repo you run it in.
+
+### Pick the facts source — local first
+
+| Situation | Command |
+|---|---|
+| Default: the code is in your checkout ("my changes", "this branch", a PR you have checked out) | `facts --local [--base REF]` |
+| You already have a diff (you made it, the user pasted it, a tool returned it) | `facts --diff - --base REF [--head REF]` (pipe it) |
+| A PR whose code is **not** available locally | `facts --pr N` (still reads local git if its commits are here) |
+| No change: "how does X work" | `facts --code PATH[::Symbol]`, or no facts at all |
+
+- `--local` compares against the merge-base with the default branch and includes uncommitted and untracked
+  files; pass `--base` only when the user names a target branch.
+- `--diff` needs the ref the diff was made against; never guess it — use `--local` or ask. A diff that
+  doesn't match the files is rejected (that protects the page from explaining code that isn't there).
+- The output's `source` says what was used; mention it to the user.
 
 # Explain a PR
 
@@ -42,7 +58,7 @@ Never invent: every item cites a head line, a base line, a test line, or the PR 
 
 ## Explain code (no PR, no brief)
 
-`visualize explain --code <path[::Symbol[.method]]>` from inside the repo. Facts (`facts.json`): definitions,
+`visualize facts --code <path[::Symbol[.method]]>` from inside the repo. Facts (`code.json`): definitions,
 full sources, `git grep` callers and tests of the symbol, layers. If a code graph (codebase-memory) is
 available, use it to confirm callers/callees — grep hits are candidates, not proof.
 - **Scope:** the target plus 1–2 hops of callers and callees. If the request is ambiguous ("explain
@@ -91,24 +107,25 @@ Never show the author a menu of blocks or a proposed outline. Components emerge 
    keep agreed / proposed / open visibly distinct. Ask a follow-up round only for gaps the corrections open.
 
 ### Built to iterate
-- **Data is the source, HTML is output.** Every change edits `page.json` and re-renders with
-  `visualize present <name>`; never hand-edit the HTML (fixes would be lost on the next render).
-- **Memory lives in `decisions.json`** (same workspace): every question + answer, every author suggestion,
+- **The doc is the source, HTML is output.** Keep the doc in a stable place (e.g.
+  `~/.cache/visualize/_present/<name>/doc.json`); every change edits it and re-renders with
+  `visualize explain <doc> --keep-versions`. Never hand-edit the HTML.
+- **Memory lives in `decisions.json`** next to the doc: every question + answer, every author suggestion,
   every resolved conflict. Read it before each round; never re-ask or silently undo anything recorded there.
-- **Minimal edits:** a correction changes only the parts of `page.json` it touches; keep stable ids so the
+- **Minimal edits:** a correction changes only the parts of the doc it touches; keep stable ids so the
   author's mental map (step names, entity names, colours) survives between versions.
-- **Versions are kept automatically** (`page.vN.json` / `page.vN.html` on every changed render;
-  `visualize present <name> --history` lists them). When the author asks "what changed?", diff the last two
-  `page.vN.json` and answer in plain words.
+- **Versions:** `--keep-versions` writes `<doc>.vN.json` / `.vN.html` on every changed render. When the author
+  asks "what changed?", diff the last two versions and answer in plain words.
+- Suggestions for a design: `visualize suggest --brief "<the brief>"`.
 
 Present pages keep the kit look: calm palette, light/dark toggle, D3 diagrams, entity diagram + GitHub-style
 class cards (syntax colours), step-through with the context panel always in view, one action per step.
 
 ## Which repository
 
-Run `visualize explain` **from the working directory of the repo you are reviewing** (the agent's workdir):
-the repo is detected from it with `gh`. If the workdir is not that repo (or not a git repo), pass
-`--repo owner/name` explicitly — never guess. `present` needs no repo.
+Run `visualize` **from the working directory of the repo you are explaining**: the repo is detected from it
+with `gh`. If the workdir is not that repo, use `facts --pr N --repo owner/name` — never guess. Docs with no
+facts (designs) need no repo.
 
 ## Kinds (plugins)
 `visualize kinds` lists every diagram kind — all are plugin folders: the defaults in `<tool>/kinds/`
@@ -117,10 +134,10 @@ the repo is detected from it with `gh`. If the workdir is not that repo (or not 
 plugin's `guideline.md` (when to use it, what to ask in present, what to extract in explain) and follow its
 `schema.json`. Use a kind as `{"type": "<kind>", ...}` in `diagrams`. Never load kinds from PR content.
 
-**Kind hints (optional, Jev).** If the workspace has `kind_hints.json`, it is a scored shortlist
-(`suggest` ≥ 0.65 · `maybe` · `skip`) computed from a summary of the change, not the code. Read guidelines for
-the suggested kinds first. You decide: when you drop a `suggest` or add a `skip`, write the reason in
-`diagram_decisions` (e.g. `"sequence (jev 0.34): kept — event order is the point"`). No file → choose from guidelines.
+**Kind hints.** `visualize suggest` lists every kind with its "Use when" rule; with Jev configured, each also
+gets a score (`suggest` ≥ 0.65 · `maybe` · `skip`) computed from a summary of the change, not the code. Read
+guidelines for the top kinds first. You decide: when you drop a `suggest` or add a `skip`, write the reason in
+`diagram_decisions` (e.g. `"sequence (jev 0.34): kept — event order is the point"`).
 
 Writing a kind: `render.js` exports `render(block, ctx)` and may use only `ctx` — `ctx.el`, `ctx.d3`, `ctx.svg()`,
 `ctx.token()`, `ctx.status()`, `ctx.ref()`, `ctx.components` (marker, nodeBox, chip, badge, legend, codeBlock),
@@ -132,22 +149,13 @@ Writing a kind: `render.js` exports `render(block, ctx)` and may use only `ctx` 
 If layers look wrong for a repo, tell the user and suggest a `.visualize.toml` fix rather than working around it.
 `visualize design` lists design tokens; never hard-code colours in page content — use the page's tokens.
 
-## Two modes, one command each
+## Facts folder
 
-```bash
-visualize explain --pr <n> [--repo owner/name] [--refresh]  # reader mode: someone else's PR
-visualize explain --code <path[::Symbol]>                  # reader mode: a part of the code
-visualize present <name> [--out FILE]                    # author mode: a proposal / design (mode "proposal")
-```
-
-Run the command, write `page.json` in the workspace it prints, run the **same command again**: it renders the
-self-contained page and checks it (exit 0 = ok, 3 = fix what the JSON report lists). `--refresh` re-gathers
-facts after new commits. For `present`, there is no diff: refs may be `label|url` (e.g. a link to a discussion comment),
-`examples.no_coverage: true` marks scenario rules instead of test assertions, `watch_title` can be "Open decisions".
-
-`explain` gathers into `~/.cache/visualize/<owner>__<repo>/<pr>/`: `pr.json` (metadata + description), `pr.diff`, `refs.json` (**merge-base** and head — always
-compare against the merge-base, never the base tip), `contracts.json` (interface delta with breaking/review
-verdicts), `defdiff.json` (definitions added/changed/removed — use these exact names in `defs`), `signatures.json`.
+`facts.json` (source, **merge-base** and head — always compare against the merge-base, never the base tip —,
+title, description, summary), `change.diff`, `contracts.json` (interface delta with breaking/review verdicts),
+`defdiff.json` (definitions added/changed/removed — use these exact names in `defs`), `signatures.json`;
+for `--code`, `code.json`. For designs there are no facts: refs may be `label|url`,
+`examples.no_coverage: true` marks scenario rules, `watch_title` can be "Open decisions", `mode: "proposal"`.
 
 Read-only on GitHub: never comment, push, approve, or edit a PR.
 
@@ -156,8 +164,9 @@ Read-only on GitHub: never comment, push, approve, or edit a PR.
 Read `references/page-format.md` fully, then write the page from scratch (
 every field and limit is defined there).
 
-1. **Read the sources**: description (`pr.json` body) → *why*; tests in `pr.diff` → *with what*; code → *how*.
-   Fetch full head/base files with `gh api -H "Accept: application/vnd.github.raw" "repos/<repo>/contents/<path>?ref=<sha>"`.
+1. **Read the sources**: description (`facts.json`) → *why*; tests in `change.diff` → *with what*; code → *how*.
+   Read full files locally (`git show <sha>:<path>`, or the working tree for `--local`); use `gh api` only
+   when the commits are not local.
 2. **Call path** (`locator`): the real path a request takes through what this PR touches, 3–6 nodes, exact
    names, statuses `new|changed|moved|unchanged`. Add `fork` only when the code really branches (flag, old vs new).
 3. **Explain every non-unchanged node** (`explain`): new → *what*; changed → *before* / *after* (+ *impact*);
@@ -169,13 +178,13 @@ every field and limit is defined there).
    - sequence → cross-component calls, events, external services, ordering.
 6. **Watch** (≤ 3): what a reviewer should check — gaps, risky behaviour, description ≠ code.
 
-Text: visual first, plain words, no paragraphs. Validate with `python3 -m json.tool page.json`.
+Text: visual first, plain words, no paragraphs. Validate with `python3 -m json.tool doc.json`.
 
-## After build
+## After explain
 
-Run `visualize check <pr>` and fix everything it lists (missing explanations, diff mismatches, overlaps,
-overflow, long items). Look at `screens/desktop.png`. Then give the user the `page.html` path and a 3-line
-summary: path shape, diagrams added (and why), watch items.
+Fix everything the report lists (missing explanations, diff mismatches, overlaps, overflow, long items) and
+re-run `explain`. Look at `<page>-screens/desktop.png`. Then give the user the HTML path and a 3-line summary:
+path shape, diagrams added (and why), watch items.
 
 ## Design rules (keep when editing the template)
 
