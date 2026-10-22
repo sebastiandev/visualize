@@ -6,6 +6,7 @@
     visualize facts --code PATH[::Symbol]                facts for a part of the code (no change)
     visualize suggest [FACTS_DIR | --brief TEXT]         shortlist of views for the doc (Jev scores when available)
     visualize explain DOC.json [--facts DIR] [-o FILE] [--keep-versions]   render + check → the HTML page
+                                                         (facts: the doc's "facts" field, else facts/ next to the doc)
     visualize views | config | design                    list views · merged config · design tokens
     visualize install | uninstall                        link this repo into ~/.agents and ~/.local/bin
 
@@ -71,10 +72,24 @@ def _snapshot(doc: Path, doc_text: str, html_text: str) -> int:
     return n
 
 
+def find_facts(doc: Path, page: dict) -> Path | None:
+    """The doc's facts folder: `"facts"` in the doc (relative to the doc), else `facts/` next to the doc."""
+    named = page.get("facts")
+    if named:
+        path = Path(named).expanduser()
+        path = path if path.is_absolute() else doc.parent / path
+        if not (path / "facts.json").exists():
+            raise RuntimeError(f'the doc names facts folder "{named}", but {path}/facts.json does not exist')
+        return path
+    beside = doc.parent / "facts"
+    return beside if (beside / "facts.json").exists() else None
+
+
 def explain(doc: Path, facts_dir: Path | None, out: Path | None, keep_versions: bool, repo: str | None) -> int:
     """Render one doc (+ optional facts folder) into a checked HTML page, in one call."""
     doc_text = doc.read_text()
     page = json.loads(doc_text)
+    facts_dir = facts_dir or find_facts(doc, page)
     root = repo_root()
     use_local(root)
     if facts_dir:
@@ -161,7 +176,7 @@ def main(argv: list[str] | None = None) -> int:
     sg.add_argument("--brief", help="design brief text (present / proposal docs)")
     ex = sub.add_parser("explain", help="render a doc (+ facts) into a checked HTML page")
     ex.add_argument("doc", type=Path)
-    ex.add_argument("--facts", type=Path, help="facts folder from `visualize facts`")
+    ex.add_argument("--facts", type=Path, help="facts folder (default: the doc's \"facts\" field, else facts/ next to the doc)")
     ex.add_argument("-o", "--out", type=Path, help="HTML path (default: next to the doc)")
     ex.add_argument("--keep-versions", action="store_true", help="keep <doc>.vN.json/.html for every changed render")
     ex.add_argument("--repo", help="owner/name for links (default: from facts or the current repo)")
@@ -193,7 +208,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "facts":
             from visualize.facts import gather
             out, f = gather(args, args.repo or default_repo())
-            print(json.dumps({"facts": str(out), "source": f["source"], "title": f["title"], "summary": f["summary"],
+            print(json.dumps({"facts": str(out), "doc": str(out.parent / "doc.json"), "source": f["source"], "title": f["title"], "summary": f["summary"],
                               "reads": f.get("reads")}, indent=1, ensure_ascii=False))
             return 0
         if args.command == "suggest":

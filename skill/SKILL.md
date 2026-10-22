@@ -26,14 +26,15 @@ Hard rules, always: cite every claim (`path:line`, `test: path:line`, `base: pat
 ## Commands — the loop is facts → suggest → doc → explain
 
 ```bash
-visualize facts --local [--base REF]              # 1. facts (pick the source below); prints the facts folder
-visualize suggest <facts-folder>                  # 2. shortlist of views (scored by Jev when configured)
-#                                                    3. you write doc.json (references/page-format.md)
-visualize explain <doc.json> --facts <folder>     # 4. render + check, one call → the HTML page
+visualize facts --local [--base REF]   # 1. facts (pick the source below); prints "facts" and "doc" paths
+visualize suggest <facts-folder>       # 2. views with signals (evidence) and Jev scores
+#                                         3. write the doc at the printed "doc" path (references/page-format.md)
+visualize explain <doc.json>           # 4. render + check, one call → the HTML page (finds facts/ beside it)
 ```
 
 `explain` is the only command that writes HTML. Exit 0 = ok, 3 = fix what the JSON report lists and run it
-again, 1 = error. Without `--facts` it renders any doc (free-form, several modules, a concept): files cited as
+again, 1 = error. Facts are found from the doc's `"facts"` field, else `facts/` next to the doc (`--facts`
+overrides). With no facts it renders any doc (free-form, several modules, a concept): files cited as
 `path:line` load from the repo you run it in.
 
 ### Pick the facts source — local first

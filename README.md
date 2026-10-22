@@ -21,9 +21,9 @@ The doc (the explanation itself) is written by an agent; the other commands help
 | Step | Command | Who | Produces |
 |---|---|---|---|
 | 1 | `visualize facts …` | tool | a facts folder: diff vs merge-base, changed definitions, interface changes |
-| 2 | `visualize suggest <facts>` | tool | a shortlist of views (scored by Jev when configured) |
+| 2 | `visualize suggest <facts>` | tool | views with **signals** (evidence from the diff) and Jev scores when configured |
 | 3 | — | agent | `doc.json`: call path, explanations, tests, diagrams, all cited |
-| 4 | `visualize explain doc.json --facts <folder>` | tool | **the HTML page**, checked in headless Chrome |
+| 4 | `visualize explain doc.json` | tool | **the HTML page**, checked in headless Chrome (facts found beside the doc) |
 
 ## Install
 
@@ -71,7 +71,7 @@ Instructions for a coding agent asked to install visualize:
 | `visualize facts --pr N [--repo o/r]` | Facts for a PR; reads local git when its commits are present, else GitHub. |
 | `visualize facts --code PATH[::Symbol]` | Facts for a part of the code (no change): sources, definitions, callers, tests. |
 | `visualize suggest [FACTS] [--brief TEXT]` | Views with their "use when" rule, scored by Jev when available. |
-| `visualize explain DOC.json [--facts DIR] [-o FILE] [--keep-versions]` | Render + check → the HTML page. Without `--facts`, files cited as `path:line` load from the current repo. |
+| `visualize explain DOC.json [--facts DIR] [-o FILE] [--keep-versions]` | Render + check → the HTML page. Facts: the doc's `"facts"` field, else `facts/` next to the doc. With none, files cited as `path:line` load from the current repo. |
 | `visualize views` · `config` · `design` | List views · merged config · design tokens. |
 | `visualize install` / `uninstall` | Create / remove the symlinks. |
 
@@ -82,15 +82,15 @@ Instructions for a coding agent asked to install visualize:
 
 **Explain your current changes** (run inside the repo):
 ```bash
-visualize facts --local                       # prints the facts folder
-# agent writes doc.json (see the skill)
-visualize explain doc.json --facts ~/.cache/visualize/me__app/local-my-branch/facts
+visualize facts --local                       # prints "facts" and "doc" paths
+# agent writes the doc at the printed "doc" path (see the skill)
+visualize explain ~/.cache/visualize/me__app/local-my-branch/doc.json
 ```
 
 **Explain a PR you don't have locally**:
 ```bash
 visualize facts --pr 1234
-visualize explain doc.json --facts ~/.cache/visualize/me__app/pr-1234/facts
+visualize explain ~/.cache/visualize/me__app/pr-1234/doc.json
 ```
 
 **A diff you already have**:
@@ -187,6 +187,14 @@ fallback = ""      # only used outside a git repo, and announced
 ```
 
 A repo-specific `.visualize.toml` you don't want to commit can be ignored locally via `.git/info/exclude`.
+
+### Signals
+
+`facts` also writes `signals.json`: evidence from the diff that a view is worth drawing — a field added to ≥ 3
+types (`entities`), an event payload change (`sequence`), ≥ 3 new raise sites (`decisions`), an enum gaining or
+losing members (`state-machine`). `suggest` lists them per view; `explain` reports signals the doc neither draws
+nor answers (`signals.unaddressed`) and those it declined, with the reason next to the evidence
+(`signals.declined`) — warnings for a human to review, never failures.
 
 ### Jev view hints (optional)
 

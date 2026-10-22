@@ -12,6 +12,7 @@ diff, definitions and interface delta from code — you write only judgement.
   "kind": "new feature | bugfix | migration behind flag | …",            // optional chip
   "flag": {"name": "flag_name", "scope": "per account / global", "ref": "path:line"},   // optional
   "mode": "proposal",                                                   // only for designs (no facts)
+  "facts": "../pr-123/facts",                                           // optional: only if not in facts/ beside the doc
   "sections": [
     {"view": "tldr", "text": "≤ 16 words", "ref": "PR description"},
     {"view": "call-path", "title": "Where it changed", "nodes": [...], "fork": {...}},
