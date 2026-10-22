@@ -65,9 +65,9 @@ def fetch(repo: str, path: str, ref: str) -> str | None:
         result = subprocess.run(["git", "show", f"{ref}:{path}"], cwd=root, capture_output=True, text=True, errors="replace")
         return result.stdout if result.returncode == 0 else None
     cache = CACHE_ROOT / "_files" / repo.replace("/", "__") / ref[:12] / path
+    _local["reads"]["github"] += 1  # cached copies count too: the content came from GitHub
     if cache.exists():
         return cache.read_text()
-    _local["reads"]["github"] += 1
     result = subprocess.run(["gh", "api", "-H", "Accept: application/vnd.github.raw", f"repos/{repo}/contents/{path}?ref={ref}"],
                             capture_output=True, text=True)
     if result.returncode != 0:

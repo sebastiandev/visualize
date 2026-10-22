@@ -61,8 +61,7 @@ def from_pr(repo: str, number: int, root: Path | None) -> tuple:
     else:
         base = gh("api", f"repos/{repo}/compare/{tip}...{head}", "-q", ".merge_base_commit.sha").strip()
         text = gh("pr", "diff", str(number), "-R", repo)
-    files = "local git" if has_commit(head) else "GitHub"
-    meta.update(source=f"pr #{number} (diff: {'local git' if local else 'GitHub'}, files: {files})", label=f"#{number} on GitHub",
+    meta.update(source=f"pr #{number} (diff: {'local git' if local else 'GitHub'})", label=f"#{number} on GitHub",
                 merge_base_differs_from_tip=base != tip)
     return meta, text, base, head, head
 
@@ -128,10 +127,12 @@ def write_change(out: Path, repo: str, meta: dict, text: str, base: str, head: s
     summary = {"files": len(paths), "additions": adds, "deletions": dels, "layers": dict(Counter(cfg.layer(p) for p in paths)),
                "definitions": len(defs), "interface_changes": len(contracts), "breaking": sum(e["breaking"] is True for e in contracts),
                "changed_definitions": [f'{d["change"]} {d["name"]}' for d in defs][:40]}
-    facts = {"kind": "change", "repo": repo, "source": meta.pop("source"), "label": meta.pop("label"),
+    reads = read_counts()
+    files = "local git" if not reads["github"] else "GitHub" if not reads["local"] else f"{reads['local']} local, {reads['github']} GitHub"
+    facts = {"kind": "change", "repo": repo, "source": f"{meta.pop('source')}; files: {files}", "label": meta.pop("label"),
              "base": base, "head": head, "head_sha": head_sha, "title": meta.get("title", ""),
              "description": (meta.get("body") or "")[:2000], "url": meta.get("url", ""), "number": meta.get("number"),
-             "file_paths": paths, "summary": summary, "meta": meta, "config": cfg.sources, "reads": read_counts()}
+             "file_paths": paths, "summary": summary, "meta": meta, "config": cfg.sources, "reads": reads}
     for name, data in (("facts.json", facts), ("defdiff.json", defs), ("contracts.json", contracts), ("signatures.json", sigs)):
         (out / name).write_text(json.dumps(data, indent=1, ensure_ascii=False))
     return facts
