@@ -5,6 +5,7 @@ Statuses and the transitions between them, with what this change adds, removes o
 ## Use when
 - explain: the diff changes a status enum, adds/removes a transition, or guards a transition with a new rule.
 - present: the brief describes a lifecycle ("pending → allocated → picked → shipped") or asks what can move where.
+Signal: an enum gains or loses members (`facts` reports it).
 Not for linear pipelines without branching — use the call path or a sequence diagram instead.
 
 ## Ask (present)

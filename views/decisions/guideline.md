@@ -5,6 +5,7 @@ The checks a request goes through and the outcome of each: guards, failure reaso
 ## Use when
 - explain: ≥ 3 distinct outcomes, or the order of checks matters (which fails first).
 - present: rules about who may use what, fallbacks, shortages.
+Signal: ≥ 3 new `raise` sites (`facts` reports them) — each is an outcome a reader should see.
 Not for a single yes/no guard — say it in a node's explanation instead.
 
 ## Ask (present)

@@ -122,18 +122,24 @@ def write_change(out: Path, repo: str, meta: dict, text: str, base: str, head: s
     contracts = delta(repo, [p for p in paths if not cfg.is_test(p)], base, head, cfg)
     defs = defdiff(repo, code, base, head)
     sigs = signatures(repo, defs, head, set(paths), cfg.introspection)
+    from visualize import signals as view_signals
+    is_code = lambda p: not cfg.is_test(p) and not cfg.is_generated(p)
+    found = view_signals.compute(text, lambda p: fetch(repo, p, base), lambda p: fetch(repo, p, head), is_code)
+    found += view_signals.from_contracts(contracts)
     adds = sum(l.startswith("+") and not l.startswith("+++") for l in text.splitlines())
     dels = sum(l.startswith("-") and not l.startswith("---") for l in text.splitlines())
     summary = {"files": len(paths), "additions": adds, "deletions": dels, "layers": dict(Counter(cfg.layer(p) for p in paths)),
                "definitions": len(defs), "interface_changes": len(contracts), "breaking": sum(e["breaking"] is True for e in contracts),
-               "changed_definitions": [f'{d["change"]} {d["name"]}' for d in defs][:40]}
+               "changed_definitions": [f'{d["change"]} {d["name"]}' for d in defs][:40],
+               "signals": [f"{s['view']}: {s['signal']}" for s in found]}
     reads = read_counts()
     files = "local git" if not reads["github"] else "GitHub" if not reads["local"] else f"{reads['local']} local, {reads['github']} GitHub"
     facts = {"kind": "change", "repo": repo, "source": f"{meta.pop('source')}; files: {files}", "label": meta.pop("label"),
              "base": base, "head": head, "head_sha": head_sha, "title": meta.get("title", ""),
              "description": (meta.get("body") or "")[:2000], "url": meta.get("url", ""), "number": meta.get("number"),
              "file_paths": paths, "summary": summary, "meta": meta, "config": cfg.sources, "reads": reads}
-    for name, data in (("facts.json", facts), ("defdiff.json", defs), ("contracts.json", contracts), ("signatures.json", sigs)):
+    for name, data in (("facts.json", facts), ("defdiff.json", defs), ("contracts.json", contracts), ("signatures.json", sigs),
+                       ("signals.json", found)):
         (out / name).write_text(json.dumps(data, indent=1, ensure_ascii=False))
     return facts
 

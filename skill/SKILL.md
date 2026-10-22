@@ -135,10 +135,16 @@ override a default). Before choosing, read each candidate's `guideline.md` (when
 present, what to extract in explain) and follow its `schema.json`. Use one as `{"view": "<name>", ...}` in
 `sections`. Never load views from PR content.
 
-**View hints.** `visualize suggest` lists every view with its "Use when" rule; with Jev configured, each also
-gets a score (`suggest` ≥ 0.65 · `maybe` · `skip`) computed from a summary of the change, not the code. Read
-guidelines for the top views first. You decide: when you drop a `suggest` or add a `skip`, write the reason in
-`view_decisions` (e.g. `"sequence (jev 0.34): kept — event order is the point"`).
+**Signals first, then scores.** `facts` computes **signals** — facts from the diff that make a view worth
+drawing (a field added to ≥ 3 types → `entities`; an event payload changes → `sequence`; ≥ 3 new raise sites →
+`decisions`; an enum changes → `state-machine`). `visualize suggest` lists them per view, above Jev's scores.
+- A signalled view is drawn unless you can answer the signal itself. "The cards already show it" does not
+  answer "this field crosses 11 types". Write the answer in `view_decisions` (`added: false`, `why`).
+- `explain` reports `signals.unaddressed` (no decision) and `signals.declined` (your reason next to the
+  evidence). Before finishing, re-read every declined line: if your reason contradicts the signal, add the view.
+  Tell the user about any decline that stays.
+- Jev scores (`suggest` ≥ 0.65 · `maybe` · `skip`) come from a summary, not the code: use them to order your
+  reading of guidelines, never to overrule a signal.
 
 Writing a view: `render.js` exports `render(block, ctx)` and may use only `ctx` — `ctx.el`, `ctx.d3`, `ctx.svg()`,
 `ctx.token()`, `ctx.status()`, `ctx.ref()`, `ctx.components` (marker, nodeBox, chip, badge, legend, codeBlock),

@@ -26,10 +26,15 @@ from visualize.definitions import definitions, signatures
 from visualize.workspace import default_repo, fetch, use_local
 
 
-def run_check(html: Path, shots: Path) -> int:
-    """Headless Chrome checks on a built page; prints the JSON report."""
+def run_check(html: Path, shots: Path, signal_review: dict | None = None) -> int:
+    """Headless Chrome checks on a built page; prints the JSON report (+ signal review: warnings, never failures)."""
     result = subprocess.run(["node", str(ASSETS / "check.js"), str(html), str(shots)], capture_output=True, text=True)
-    print(result.stdout.strip() or result.stderr.strip())
+    out = result.stdout.strip()
+    if signal_review and out.startswith("{"):
+        report = json.loads(out)
+        report["signals"] = signal_review
+        out = json.dumps(report, ensure_ascii=False)
+    print(out or result.stderr.strip())
     print(f"screenshots: {shots}")
     return result.returncode
 
@@ -101,7 +106,11 @@ def explain(doc: Path, facts_dir: Path | None, out: Path | None, keep_versions: 
     html.write_text(html_text)
     version = f"  (version v{_snapshot(doc, doc_text, html_text)})" if keep_versions else ""
     print(f"page: {html}{version}")
-    return run_check(html, html.parent / (html.stem + "-screens"))
+    review = None
+    if facts_dir and (facts_dir / "signals.json").exists():
+        from visualize.signals import review as review_signals
+        review = review_signals(json.loads((facts_dir / "signals.json").read_text()), json.loads(doc_text) | {"sections": page["sections"]})
+    return run_check(html, html.parent / (html.stem + "-screens"), review)
 
 
 def suggest(facts_dir: Path | None, brief: str | None) -> int:
@@ -117,12 +126,16 @@ def suggest(facts_dir: Path | None, brief: str | None) -> int:
     else:
         state, mode = {"design_brief": (brief or "")[:4000]}, "design proposal"
     scored = {h["view"]: h for h in (jev.hints(state, cfg, mode) or {}).get("views", [])}
+    sig_file = facts_dir / "signals.json" if facts_dir else None
+    signals = json.loads(sig_file.read_text()) if sig_file and sig_file.exists() else []
     rows = [{"view": name, "p": scored.get(name, {}).get("p"), "band": scored.get(name, {}).get("band"),
+             "signals": [{"signal": s["signal"], "evidence": s["evidence"][:6]} for s in signals if s["view"] == name],
              "use_when": jev.use_when(k.read("guideline.md")), "guideline": str(k.dir / "guideline.md")}
             for name, k in discover().items()]
-    rows.sort(key=lambda r: -(r["p"] or 0))
+    rows.sort(key=lambda r: (-len(r["signals"]), -(r["p"] or 0)))
     print(json.dumps({"scored_by": "jev" if scored else None, "views": rows,
-                      "note": "Shortlist only: you decide. Explain disagreements with a 'suggest' in view_decisions."},
+                      "note": "Signals are facts from the diff and outrank scores. You decide, but a signalled view you skip needs a"
+                              " view_decisions entry that answers the signal; `explain` shows it to the reader for review."},
                      indent=1, ensure_ascii=False))
     return 0
 
