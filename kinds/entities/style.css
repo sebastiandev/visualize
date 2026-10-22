@@ -1,0 +1,22 @@
+.ent-wrap{position:relative}
+.ent-wrap svg.edges{position:absolute;inset:0;pointer-events:none;overflow:visible}
+.ent-wrap svg.edges path{fill:none;stroke:var(--faint);stroke-width:1.5}
+.ent-wrap svg.edges text{font:11px ui-sans-serif,system-ui;fill:var(--muted)}
+.ent-grid{display:grid;gap:28px 96px;align-items:start;position:relative}
+.ent{border:1.5px solid var(--line);border-radius:10px;background:var(--card);overflow:hidden;font-size:12.5px}
+.ent.new{border-color:var(--sage)}
+.ent.changed{border-color:var(--clay)}
+.ent .eh{padding:8px 10px;background:var(--soft);border-bottom:1px solid var(--line)}
+.ent .eh b{font:600 13px ui-monospace,monospace}
+.ent .eh .k{font:10px ui-sans-serif;text-transform:uppercase;letter-spacing:.5px;color:var(--faint);margin-left:6px}
+.ent .ep{display:block;font:10px ui-monospace,monospace;color:var(--faint);overflow-wrap:anywhere;margin-top:2px}
+.ent ul{list-style:none;margin:0;padding:4px 0}
+.ent li{display:flex;gap:6px;padding:2px 10px;font:12px/1.6 ui-monospace,monospace;align-items:baseline}
+.ent li .m{width:12px;flex:none;font-weight:700;color:var(--gh-num)}
+.ent li.new{background:var(--gh-add)}
+.ent li.new .m{color:var(--sage)}
+.ent li.removed{background:var(--gh-del);text-decoration:line-through}
+.ent li.removed .m{color:var(--bad)}
+.ent li.changed{background:var(--amber-soft)}
+.ent li .t{color:var(--gh-ty);margin-left:auto;padding-left:10px;text-align:right}
+.ent li .nt{display:block;font:11px ui-sans-serif,system-ui;color:var(--muted)}

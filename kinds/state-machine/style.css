@@ -1,0 +1,5 @@
+.sm-label { font: 11.5px ui-sans-serif, system-ui; fill: var(--muted); }
+.sm-label-bg { fill: var(--card); }
+.sm-edge { fill: none; stroke-width: 1.8; }
+.sm-edge.removed { stroke-dasharray: 5 4; }
+.sm-terminal rect { stroke-width: 3.2; }

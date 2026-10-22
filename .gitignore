@@ -1,0 +1,6 @@
+spikes/
+specs/
+.DS_Store
+__pycache__/
+*.pyc
+examples/

@@ -1,0 +1,19 @@
+{
+  "required": [
+    "type",
+    "title",
+    "root"
+  ],
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "question": {
+      "type": "string"
+    },
+    "root": {
+      "type": "object",
+      "description": "{label, ref, children: [{edge, label|outcome, tone?, ref, children?}]} \u2264 16 nodes"
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "required": [
+    "type",
+    "title",
+    "entities"
+  ],
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "question": {
+      "type": "string"
+    },
+    "entities": {
+      "type": "array",
+      "description": "[{id, label, kind: input|type|event|table|enum|model, status, file?, ref, fields: [{name, type, status, note?}]}]"
+    },
+    "relations": {
+      "type": "array",
+      "description": "[{from, to, label}]"
+    }
+  }
+}

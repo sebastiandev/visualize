@@ -1,0 +1,6 @@
+.dnode rect{stroke-width:1.8}
+.dnode .dl{font:600 12.5px ui-sans-serif,system-ui;fill:var(--ink)}
+.dnode .dr{font:10px ui-monospace,monospace;fill:var(--faint)}
+.dlink{fill:none;stroke:var(--line);stroke-width:1.8}
+.el{font:600 11px ui-sans-serif,system-ui;fill:var(--muted)}
+.elbg{fill:var(--card)}

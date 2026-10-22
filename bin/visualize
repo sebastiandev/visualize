@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Wrapper: run the visualize CLI from this repository with the system python3 (standard library only).
+set -euo pipefail
+ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" exec python3 -m visualize.cli "$@"

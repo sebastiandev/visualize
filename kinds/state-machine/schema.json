@@ -1,0 +1,9 @@
+{
+  "required": ["type", "title", "states", "transitions"],
+  "properties": {
+    "title": {"type": "string"},
+    "question": {"type": "string"},
+    "states": {"type": "array", "description": "[{id, label, status: new|changed|removed|unchanged, terminal?: bool, ref}]"},
+    "transitions": {"type": "array", "description": "[{from, to, label, status, ref}]"}
+  }
+}

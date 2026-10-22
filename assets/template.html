@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PR explain</title>
+<script>document.documentElement.dataset.theme=localStorage.getItem('theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');</script>
+<style>
+:root{--paper:#FAF9F5;--card:#fff;--panel:#FDFCF9;--ink:#29261F;--muted:#6E6B62;--faint:#9A968B;--line:#E7E4DA;--soft:#F3F1EA;
+ --clay:#C96442;--clay-soft:#F5E6DE;--sage:#5E8C7A;--sage-ink:#2F5A3B;--sage-soft:#E9F0E6;--amber-ink:#8A5D16;--amber-soft:#FBF1E4;--bad:#A0452A;--bad-soft:#F6E3DC;--stone:#8A8578;--lav:#7B6CB5;--lav-soft:#EEEAF6;
+ --gh-bg:#ffffff;--gh-head:#f6f8fa;--gh-border:#d0d7de;--gh-text:#1f2328;--gh-num:#6e7781;--gh-link:#0969da;
+ --gh-add:#e6ffec;--gh-add-num:#ccffd8;--gh-add-word:#abf2bc;--gh-del:#ffebe9;--gh-del-num:#ffd7d5;--gh-del-word:rgba(255,129,130,.4);
+ --gh-hunk:#ddf4ff;--gh-hunk-num:#b6e3ff;--gh-hunk-text:#57606a;--gh-empty:#f6f8fa;--gh-kw:#cf222e;--gh-ty:#8250df}
+[data-theme=dark]{--paper:#1C1B18;--card:#24231F;--panel:#2A2925;--ink:#ECE9E1;--muted:#ABA69A;--faint:#7E7A70;--line:#3A3832;--soft:#302E29;
+ --clay:#E0866A;--clay-soft:#45302A;--sage:#86B5A2;--sage-ink:#A9D4C2;--sage-soft:#263A32;--amber-ink:#E7C17E;--amber-soft:#3D3322;--bad:#F09A84;--bad-soft:#47302A;--stone:#8F8A7E;--lav:#A99BE0;--lav-soft:#322D45;
+ --gh-bg:#0d1117;--gh-head:#161b22;--gh-border:#30363d;--gh-text:#e6edf3;--gh-num:#6e7681;--gh-link:#4493f8;
+ --gh-add:rgba(46,160,67,.15);--gh-add-num:rgba(63,185,80,.3);--gh-add-word:rgba(46,160,67,.4);--gh-del:rgba(248,81,73,.1);--gh-del-num:rgba(248,81,73,.3);--gh-del-word:rgba(248,81,73,.4);
+ --gh-hunk:rgba(56,139,253,.1);--gh-hunk-num:rgba(56,139,253,.4);--gh-hunk-text:#7d8590;--gh-empty:#161b22;--gh-kw:#ff7b72;--gh-ty:#d2a8ff}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.55 ui-sans-serif,system-ui,sans-serif}
+main{max-width:1800px;margin:auto;padding:16px clamp(14px,2vw,32px) 48px}a{color:var(--clay)}
+h1,h2{font-family:Georgia,"Times New Roman",serif;font-weight:500;margin:0}h1{font-size:28px;line-height:1.25}h2{font-size:21px;margin-bottom:12px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.tools{display:flex;gap:8px;align-items:center;position:sticky;top:8px;z-index:5}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--card)}.seg button{font:12px ui-sans-serif,system-ui;padding:5px 10px;border:0;background:transparent;color:var(--ink);cursor:pointer}
+.seg[hidden]{display:none}.seg button[aria-pressed=true]{background:var(--soft);font-weight:650}button:focus-visible,summary:focus-visible,.node:focus-visible{outline:3px solid var(--clay);outline-offset:2px}
+.meta{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}.chip{font-size:12px;padding:3px 10px;border-radius:999px;background:var(--soft);color:var(--ink)}
+.chip.kind{background:var(--lav-soft);color:var(--lav)}.chip.flag{background:var(--amber-soft);color:var(--amber-ink);font-family:ui-monospace,monospace}
+.tldr{font-family:Georgia,serif;font-size:20px;margin:12px 0 4px;padding-left:16px;border-left:3px solid var(--clay)}
+.ref{font-size:11px;color:var(--muted);margin-left:6px;white-space:nowrap}.ref a{color:var(--muted)}
+section{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px 20px;margin-top:16px}
+.q{font-size:14px;color:var(--muted);margin:-6px 0 12px}
+/* Locator */
+.locator{display:grid;grid-template-columns:minmax(340px,32%) minmax(0,1fr);gap:20px;align-items:start}
+.locator>div:first-child{position:sticky;top:56px}
+.locator svg{width:100%;height:auto;display:block}
+.node rect{fill:var(--card);stroke-width:2}.node .lb{font:600 14px ui-sans-serif,system-ui;fill:var(--ink)}
+.node .ly{font:600 9.5px ui-sans-serif,system-ui;letter-spacing:1px;fill:var(--faint);text-transform:uppercase}
+.node .pth{font:10.5px ui-monospace,SFMono-Regular,Menlo,monospace;fill:var(--faint)}.node{cursor:pointer}.node:focus{outline:none}.node.sel rect{stroke-width:4}
+.link{fill:none;stroke:var(--line);stroke-width:2}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted);margin-top:8px;flex-wrap:wrap}.sw{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-2px;border:2px solid}
+.detail{border:1px solid var(--line);border-radius:14px;padding:16px;background:var(--panel);min-height:220px;position:sticky;top:56px;max-height:calc(100vh - 72px);overflow:auto;overscroll-behavior:contain}
+.detail h3{margin:0;font-size:17px;overflow-wrap:anywhere}.detail .path{font:12px ui-monospace,monospace;color:var(--faint);overflow-wrap:anywhere;margin:2px 0 8px}.detail .what{color:var(--muted);font-size:14px;margin:0 0 12px}
+.sig h4{margin:0 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+pre.code{margin:0 0 12px;padding:10px 12px;background:var(--gh-head);border:1px solid var(--gh-border);border-radius:6px;font:12px/18px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--gh-text);white-space:pre-wrap;overflow-wrap:anywhere}
+.kw{color:var(--gh-kw)}.ty{color:var(--gh-ty)}
+/* GitHub diff */
+details.gh{border:1px solid var(--gh-border);border-radius:6px;overflow:hidden;background:var(--gh-bg);margin-top:10px}
+details.gh>summary{list-style:none;display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--gh-head);border-bottom:1px solid var(--gh-border);font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--gh-text);cursor:pointer}
+details.gh:not([open])>summary{border-bottom:0}details.gh>summary::-webkit-details-marker{display:none}
+details.gh>summary .chev{display:inline-block;transition:transform .15s;color:var(--gh-num)}details.gh[open]>summary .chev{transform:rotate(90deg)}
+details.gh>summary .fp{flex:1;overflow-wrap:anywhere}details.gh>summary a{color:var(--gh-link);font:12px ui-sans-serif,system-ui;white-space:nowrap}
+details.gh>summary .stat{font:11px ui-sans-serif,system-ui;color:var(--gh-num)}
+table.gh{width:100%;border-collapse:collapse;table-layout:fixed;font:12px/20px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--gh-text)}
+table.gh td{padding:0 8px;border:0;vertical-align:top;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word}
+table.gh td.num{width:44px;text-align:right;color:var(--gh-num);user-select:none;white-space:nowrap;padding:0 6px}table.gh td.sign{width:16px;padding:0 0 0 4px;color:var(--gh-num)}
+table.gh tr.hunk td{background:var(--gh-hunk);color:var(--gh-hunk-text)}table.gh tr.hunk td.num{background:var(--gh-hunk-num)}
+table.gh td.add{background:var(--gh-add)}table.gh td.num.add{background:var(--gh-add-num);color:var(--gh-text)}
+table.gh td.del{background:var(--gh-del)}table.gh td.num.del{background:var(--gh-del-num);color:var(--gh-text)}
+table.gh td.empty{background:var(--gh-empty)}.wadd{background:var(--gh-add-word);border-radius:2px}.wdel{background:var(--gh-del-word);border-radius:2px}
+.gh-note{padding:10px;margin:0;font-size:13px;color:var(--gh-hunk-text)}
+/* Test matrix */
+.coverage{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin:0 0 12px}.coverage b{color:var(--ink)}
+table.matrix{width:100%;border-collapse:separate;border-spacing:0;font-size:14px;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+table.matrix th{background:var(--soft);font-size:12px;font-weight:650;color:var(--muted);text-align:left;padding:10px 14px;letter-spacing:.3px}
+table.matrix td{padding:10px 14px;border-top:1px solid var(--line);text-align:left;vertical-align:middle}
+table.matrix tbody tr:nth-child(even) td{background:color-mix(in srgb,var(--soft) 45%,transparent)}
+table.matrix td.case{font-weight:500}table.matrix td.t,table.matrix th.t{text-align:right;width:1%;white-space:nowrap}
+table.matrix tr.new td.case{box-shadow:inset 3px 0 0 var(--sage)}.tag{font-size:10px;font-weight:700;color:var(--sage);margin-left:8px;text-transform:uppercase;letter-spacing:.5px}
+.v{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:650;white-space:nowrap}
+.v.yes,.v.ok{background:var(--sage-soft);color:var(--sage-ink)}.v.no{background:var(--soft);color:var(--muted)}.v.err{background:var(--bad-soft);color:var(--bad)}
+.v.na{color:var(--faint);font-weight:400;padding-left:0}.v.untested{background:var(--amber-soft);color:var(--amber-ink);font-weight:500}.v.plain{background:var(--soft);color:var(--ink);font:500 11px ui-monospace,monospace}
+.foot{font-size:13px;color:var(--muted);margin-top:10px}
+/* Interface cards */
+details.gh.card>summary{font-family:ui-sans-serif,system-ui}details.gh.card>summary b{font:600 13px ui-monospace,monospace}
+.badge{font:700 10px ui-sans-serif,system-ui;padding:2px 7px;border-radius:6px;text-transform:uppercase;background:var(--sage-soft);color:var(--sage-ink)}.badge.chg{background:var(--amber-soft);color:var(--amber-ink)}.badge.brk{background:var(--bad-soft);color:var(--bad)}
+.surf{font:11px ui-sans-serif,system-ui;color:var(--gh-num)}.card .fp{font:11px ui-monospace,monospace;color:var(--gh-num)}
+.explain{margin:0 0 14px;display:grid;gap:10px}.explain h4{margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+.explain ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}.explain li{font-size:14px;padding:6px 10px;border-radius:8px;background:var(--soft)}
+.explain .ba{display:grid;grid-template-columns:1fr 1fr;gap:8px}.explain .ba .b li{background:var(--gh-del)}.explain .ba .a li{background:var(--gh-add)}
+.explain .imp li{background:var(--amber-soft)}.explain .imp li:before{content:"↳ ";color:var(--amber-ink);font-weight:700}
+@media(max-width:820px){.explain .ba{grid-template-columns:1fr}}
+/* Diagrams */
+.dg svg{width:100%;height:auto;display:block}.dg text{font-family:ui-sans-serif,system-ui}
+.steps-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:4px 16px;margin:10px 0 0;padding:0;list-style:none;font-size:13px}
+.steps-list li{display:flex;gap:8px;align-items:baseline}.steps-list .n{flex:none;display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;font:700 10px ui-sans-serif;color:#fff}
+.why{font-size:12px;color:var(--muted);margin-top:10px}
+main section>h2.fold{cursor:pointer;display:flex;align-items:center;gap:8px;user-select:none;margin-bottom:12px}
+main section>h2.fold:before{content:'▸';display:inline-block;font-size:13px;color:var(--muted);transition:transform .15s;transform:rotate(90deg)}
+main section.collapsed>h2.fold{margin-bottom:0}main section.collapsed>h2.fold:before{transform:rotate(0)}
+main section.collapsed>:not(h2){display:none!important}main section>h2.fold:focus-visible{outline:3px solid var(--clay);outline-offset:4px;border-radius:6px}
+ul.watch{list-style:none;padding:0;margin:0;display:grid;gap:8px}ul.watch li{padding:10px 12px;border-radius:10px;background:var(--amber-soft);font-size:15px}
+/*HLCSS*/
+/*KINDCSS*/
+@media(max-width:820px){.locator{grid-template-columns:1fr}.locator>div:first-child,.detail{position:static;max-height:none}h1{font-size:23px}table.matrix td,table.matrix th{padding:8px}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body><main id="app"></main>
+<script>/*D3*/</script>
+<script>/*HLJS*/</script>
+<script>/*KINDS*/</script>
+<script id="page" type="application/json">/*PAGE*/</script>
+<script>
+'use strict';
+const P=JSON.parse(document.getElementById('page').textContent),D=P.defdiff||[];
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const byName=Object.fromEntries(D.map(e=>[e.name,e]));
+const blob=(file,line)=>`https://github.com/__REPO__/blob/${P.head_sha}/${file}${line?'#L'+line:''}`;
+/** Link `path:line`, `test: path:line` or `PR description`. */
+function ref(r){if(!r)return'';{const u=/^(.+)\|(https?:\/\/\S+)$/.exec(r.trim());if(u)return `<span class="ref"><a href="${u[2]}" target="_blank" rel="noopener">${esc(u[1])}</a></span>`;}const m=/^(?:(test|base):\s*)?((?:[\w.\-]+\/)+[\w.\-]+):(\d+)$/.exec(r.trim());
+ const sha=m&&m[1]==='base'?P.base_sha:P.head_sha;
+ const href=m?`https://github.com/__REPO__/blob/${sha}/${m[2]}#L${m[3]}`:/description/i.test(r)?P.url:null;const label=m?`${m[1]==='base'?'base ':''}${m[2].split('/').pop()}:${m[3]}`:r;
+ return `<span class="ref">${href?`<a href="${href}" target="_blank" rel="noopener">${esc(label)}</a>`:esc(label)}</span>`;}
+
+/* ---------- syntax highlighting (highlight.js, GitHub light/dark themes) ---------- */
+const LANGS={py:'python',pyi:'python',css:'css',scss:'scss',html:'xml',htm:'xml',xml:'xml',jinja:'xml',j2:'xml',js:'javascript',mjs:'javascript',ts:'typescript',tsx:'typescript',jsx:'javascript',
+ json:'json',yml:'yaml',yaml:'yaml',sql:'sql',sh:'bash',bash:'bash',md:'markdown',gql:'graphql',graphql:'graphql',toml:'ini',ini:'ini',cfg:'ini'};
+/** highlight.js language for a path, or null (plain text). */
+function langOf(path){if(!path)return null;const base=path.split('/').pop();if(/^Dockerfile/i.test(base))return 'dockerfile';const ext=(base.split('.').pop()||'').toLowerCase();return LANGS[ext]||null;}
+/** Split highlighted HTML into per-line HTML, closing and reopening spans at each newline. */
+function splitLines(html){const out=[];let line='',stack=[];const re=/(<span[^>]*>|<\/span>|\n)/g;let last=0,m;
+ while((m=re.exec(html))){line+=html.slice(last,m.index);last=re.lastIndex;const tok=m[1];
+  if(tok==='\n'){out.push(line+'</span>'.repeat(stack.length));line=stack.join('');}
+  else if(tok==='</span>'){stack.pop();line+=tok;}else{stack.push(tok);line+=tok;}}
+ out.push(line+html.slice(last)+'</span>'.repeat(stack.length));return out;}
+/** Highlight a block of source lines as one unit (keeps multi-line strings right); returns one HTML string per line. */
+function highlight(lines,lang){if(!lines.length)return[];const text=lines.join('\n');
+ if(!lang||!window.hljs||!hljs.getLanguage(lang))return lines.map(esc);
+ try{const out=splitLines(hljs.highlight(text,{language:lang,ignoreIllegals:true}).value);return out.length===lines.length?out:lines.map(esc);}catch{return lines.map(esc);}}
+/** Wrap characters [a, b) of an already-highlighted line in a word-diff span, across token boundaries. */
+function markRange(html,a,b,cls){if(b<=a)return html;const t=document.createElement('template');t.innerHTML=html;let pos=0;
+ const walker=document.createTreeWalker(t.content,NodeFilter.SHOW_TEXT);const nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);
+ for(const node of nodes){const len=node.data.length,s=Math.max(a,pos),e=Math.min(b,pos+len);
+  if(s<e){const mid=node.splitText(s-pos);mid.splitText(e-s);const w=document.createElement('span');w.className=cls;mid.parentNode.replaceChild(w,mid);w.appendChild(mid);}
+  pos+=len;}return t.innerHTML;}
+/** Changed span between two paired lines: [prefix length, suffix length]. */
+function diffSpan(a,b){let i=0;while(i<a.length&&i<b.length&&a[i]===b[i])i++;let j=0;while(j<a.length-i&&j<b.length-i&&a[a.length-1-j]===b[b.length-1-j])j++;return [i,j];}
+
+/* ---------- diff rendering (GitHub style, wraps, foldable) ---------- */
+let view=localStorage.getItem('diffView')||'unified';
+function blocks(lines){const out=[];let k=0;while(k<lines.length){if(lines[k].t===' '){out.push({ctx:lines[k++]});continue;}
+ const dels=[],adds=[];while(k<lines.length&&lines[k].t==='-')dels.push(lines[k++]);while(k<lines.length&&lines[k].t==='+')adds.push(lines[k++]);out.push({dels,adds});}return out;}
+/** Attach highlighted HTML to every line: old side (context + removed) and new side (context + added) highlighted separately. */
+function colourHunk(h,lang){if(h._hl===lang)return;const oldL=h.lines.filter(l=>l.t!=='+'),newL=h.lines.filter(l=>l.t!=='-');
+ const oh=highlight(oldL.map(l=>l.s),lang),nh=highlight(newL.map(l=>l.s),lang);oldL.forEach((l,i)=>{l.ho=oh[i];});newL.forEach((l,i)=>{l.hn=nh[i];});h._hl=lang;}
+const coloured=h=>h.lines.every(l=>(l.t==='+'||l.ho!==undefined)&&(l.t==='-'||l.hn!==undefined));
+/** Colour every full hunk of a file before trimming, so a trimmed view never starts mid-string. */
+const colourFile=(file,lang)=>(P.diff[file]||[]).forEach(h=>colourHunk(h,lang));
+function hunkRows(h,lang){if(!coloured(h))colourHunk(h,lang);const split=view==='split';let rows=`<tr class="hunk"><td class="num"></td>${split?'':'<td class="num"></td>'}<td colspan="${split?3:2}">${esc(h.header)}</td></tr>`;
+ for(const b of blocks(h.lines)){
+  if(b.ctx){const s=b.ctx.hn;rows+=split?`<tr><td class="num">${b.ctx.o}</td><td>${b.ctx.ho}</td><td class="num">${b.ctx.n}</td><td>${s}</td></tr>`:`<tr><td class="num">${b.ctx.o}</td><td class="num">${b.ctx.n}</td><td class="sign"></td><td>${s}</td></tr>`;continue;}
+  const n=Math.max(b.dels.length,b.adds.length),pair=[];
+  for(let i=0;i<n;i++){const d=b.dels[i],a=b.adds[i];if(d&&a){const [p,q]=diffSpan(d.s,a.s);pair.push([markRange(d.ho,p,d.s.length-q,'wdel'),markRange(a.hn,p,a.s.length-q,'wadd')]);}else pair.push([d?d.ho:null,a?a.hn:null]);}
+  // Split view: pure additions / removals use the full width (no empty half), like reading a new file.
+  if(split&&!b.dels.length){b.adds.forEach(a=>{rows+=`<tr><td class="num add">${a.n}</td><td class="add" colspan="3">${a.hn}</td></tr>`;});continue;}
+  if(split&&!b.adds.length){b.dels.forEach(d=>{rows+=`<tr><td class="num del">${d.o}</td><td class="del" colspan="3">${d.ho}</td></tr>`;});continue;}
+  if(split)for(let i=0;i<n;i++){const d=b.dels[i],a=b.adds[i];rows+=`<tr>${d?`<td class="num del">${d.o}</td><td class="del">${pair[i][0]}</td>`:'<td class="num empty"></td><td class="empty"></td>'}${a?`<td class="num add">${a.n}</td><td class="add">${pair[i][1]}</td>`:'<td class="num empty"></td><td class="empty"></td>'}</tr>`;}
+  else{b.dels.forEach((d,i)=>{rows+=`<tr><td class="num del">${d.o}</td><td class="num del"></td><td class="sign del">-</td><td class="del">${pair[i][0]}</td></tr>`;});
+   b.adds.forEach((a,i)=>{rows+=`<tr><td class="num add"></td><td class="num add">${a.n}</td><td class="sign add">+</td><td class="add">${pair[i][1]}</td></tr>`;});}}
+ return rows;}
+const cols=()=>view==='split'?'<colgroup><col style="width:44px"><col><col style="width:44px"><col></colgroup>':'<colgroup><col style="width:44px"><col style="width:44px"><col style="width:16px"><col></colgroup>';
+/** Trim hunks to head line ranges (± 3 context); removed lines kept when next to kept lines. */
+function trim(hs,rs){if(!rs||!rs.length)return hs;const keep=l=>l.n!=null&&rs.some(([a,b])=>l.n>=a-3&&l.n<=b+3);const out=[];
+ for(const h of hs){const ls=h.lines,k=ls.map(keep);for(let i=0;i<ls.length;i++)if(ls[i].t==='-'){let j=i;while(j<ls.length&&ls[j].t==='-')j++;if((i>0&&k[i-1])||(j<ls.length&&k[j]))k[i]=true;}
+  let cur=null;ls.forEach((l,i)=>{if(!k[i]){cur=null;return;}if(!cur){cur={header:`@@ -${l.o??ls.find((x,q)=>q>i&&x.o!=null)?.o??'…'} +${l.n??'…'} @@`,lines:[]};out.push(cur);}cur.lines.push(l);});}
+ return out;}
+const stat=hs=>{let a=0,d=0;hs.forEach(h=>h.lines.forEach(l=>{a+=l.t==='+';d+=l.t==='-';}));return `<span class="stat">+${a} −${d}</span>`;};
+/** Code mode: plain highlighted source trimmed to the node's ranges (± 3 lines), foldable, with the full path. */
+function fileSource(file,ranges,open=true){const all=(P.sources||{})[file]||[];if(!all.length)return '';const lang=langOf(file);
+ const keep=new Set();(ranges&&ranges.length?ranges:[[1,Math.min(all.length,60)]]).forEach(([a,b])=>{for(let i=Math.max(1,a-3);i<=Math.min(all.length,b+3);i++)keep.add(i);});
+ const nums=[...keep].sort((x,y)=>x-y);const hl=highlight(all,lang);let rows='',prev=0;
+ for(const n of nums){if(prev&&n>prev+1)rows+=`<tr class="hunk"><td class="num"></td><td>⋯</td></tr>`;rows+=`<tr><td class="num">${n}</td><td>${hl[n-1]}</td></tr>`;prev=n;}
+ return `<details class="gh" ${open?'open':''}><summary><span class="chev">▸</span><span class="fp">${esc(file)}</span><span class="stat">${nums.length} lines</span><a href="${blob(file,nums[0])}" target="_blank" rel="noopener">View file ↗</a></summary><table class="gh"><colgroup><col style="width:44px"><col></colgroup><tbody>${rows}</tbody></table></details>`;}
+function fileDiff(file,ranges,open=true){if(P.mode==='code')return fileSource(file,ranges,open);colourFile(file,langOf(file));let hs=trim(P.diff[file]||[],ranges),nearest=false;
+ if(!hs.length&&(P.diff[file]||[]).length){ /* node's own lines unchanged → the closest change in this file, labelled */
+  const mid=ranges&&ranges.length?ranges[0][0]:0,dist=h=>Math.min(...h.lines.filter(l=>l.n!=null).map(l=>Math.abs(l.n-mid)));
+  hs=[[...P.diff[file]].sort((a,b)=>dist(a)-dist(b))[0]];nearest=true;}
+ const head=`<summary><span class="chev">▸</span><span class="fp">${esc(file)}</span>${hs.length?stat(hs):''}<a href="${blob(file)}" target="_blank" rel="noopener">View file ↗</a></summary>`;
+ return `<details class="gh" ${open?'open':''}>${head}${nearest?'<p class="gh-note">This definition’s lines are unchanged — nearest change in the file:</p>':''}${hs.length?`<table class="gh">${cols()}<tbody>${hs.map(h=>hunkRows(h,langOf(file))).join('')}</tbody></table>`:'<p class="gh-note">No changes to this part of the file.</p>'}</details>`;}
+/** A plain (non-diff) code listing with line numbers, highlighted as one block. */
+function codeRows(lines,lang){const hl=highlight(lines.map(l=>l.s),lang);return lines.map((l,i)=>`<tr><td class="num">${l.n}</td><td>${hl[i]}</td></tr>`).join('');}
+
+/* ---------- page ---------- */
+const L=P.locator,F=L.fork;
+function render(){
+d3.select('#app').html(`<div class="top"><a href="${P.url}" target="_blank" rel="noopener" style="font-size:13px">${esc(P.source_label||('#'+P.number+' on GitHub'))}</a>
+ <div class="tools"><span class="seg" role="group" aria-label="Diff view" ${Object.keys(P.diff||{}).length?'':'hidden'}><button data-v="unified" aria-pressed="${view==='unified'}">Unified</button><button data-v="split" aria-pressed="${view==='split'}">Split</button></span>
+ <span class="seg" role="group" aria-label="Sections"><button id="fold-all">Collapse all</button><button id="unfold-all">Expand all</button></span>
+ <span class="seg"><button id="theme" aria-label="Toggle dark mode">${document.documentElement.dataset.theme==='dark'?'☀ Light':'☾ Dark'}</button></span></div></div>
+ <h1>${esc(P.title)}</h1><div class="meta"><span class="chip kind">${esc(P.kind)}</span>${P.flag?`<span class="chip flag">⚑ ${esc(P.flag.name)} · ${esc(P.flag.scope)}</span>`:''}</div>
+ <p class="tldr">${esc(P.tldr.text)}${ref(P.tldr.ref)}</p>
+ <section aria-labelledby="h-loc"><h2 id="h-loc">${esc(L.title)}</h2><div class="locator"><div><svg id="loc" role="group" aria-label="Call path with the changed components"></svg>
+  <div class="legend"><span><i class="sw" style="border-color:var(--clay)"></i>changed</span><span><i class="sw" style="border-color:var(--sage)"></i>${P.mode==='code'?'focus':'new'}</span><span ${P.mode==='code'?'hidden':''}><i class="sw" style="border-color:var(--lav)"></i>moved</span><span><i class="sw" style="border-color:var(--stone);border-style:dashed"></i>unchanged</span><span>select a box →</span></div></div>
+  <div class="detail" id="detail" aria-live="polite"></div></div></section>
+ ${(P.diagrams||[]).map((g,i)=>`<section class="dg" aria-labelledby="h-dg${i}"><h2 id="h-dg${i}">${esc(g.title)}</h2>${g.question?`<p class="q">${esc(g.question)}</p>`:''}<div id="dg${i}"></div></section>`).join('')}
+ ${matrixHtml()}${cardsHtml()}
+ ${P.watch&&P.watch.length?`<section aria-labelledby="h-w"><h2 id="h-w">${esc(P.watch_title||"Worth a reviewer's look")}</h2><ul class="watch">${P.watch.map(w=>`<li>${esc(w.text)}${ref(w.ref)}</li>`).join('')}</ul></section>`:''}`);
+d3.selectAll('.tools .seg button[data-v]').on('click',function(){view=this.dataset.v;localStorage.setItem('diffView',view);const keep=sel&&sel.id;render();if(keep)select(items.find(i=>i.id===keep));});
+d3.select('#theme').on('click',()=>{const t=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=t;localStorage.setItem('theme',t);d3.select('#theme').text(t==='dark'?'☀ Light':'☾ Dark');});
+makeFoldable();drawLocator();(P.diagrams||[]).forEach((g,i)=>{const el=document.getElementById('dg'+i);el.dataset.kind=g.type;const fn=KINDS[g.type];
+ if(!fn){el.textContent=`Diagram error: unknown kind "${g.type}" (see \`visualize kinds\`)`;return;}
+ try{fn(g,makeCtx(el,g.type,i));}catch(e){el.textContent='Diagram error: '+e.message;}});}
+
+/** Every section header toggles its section; state persists per PR + section. */
+function makeFoldable(){const key=id=>`fold:${P.number}:${id}`;
+ document.querySelectorAll('main section').forEach(sec=>{const h=sec.querySelector(':scope>h2');if(!h)return;const id=h.id||h.textContent;
+  const set=c=>{sec.classList.toggle('collapsed',c);h.setAttribute('aria-expanded',String(!c));localStorage.setItem(key(id),c?'1':'0');if(!c)window.dispatchEvent(new Event('resize'));};
+  h.classList.add('fold');h.tabIndex=0;h.setAttribute('role','button');set(localStorage.getItem(key(id))==='1');
+  h.addEventListener('click',()=>set(!sec.classList.contains('collapsed')));h.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();set(!sec.classList.contains('collapsed'));}});
+  sec._fold=set;});
+ d3.select('#fold-all').on('click',()=>document.querySelectorAll('main section').forEach(s=>s._fold&&s._fold(true)));
+ d3.select('#unfold-all').on('click',()=>document.querySelectorAll('main section').forEach(s=>s._fold&&s._fold(false)));}
+const statusColour={new:'var(--sage)',changed:'var(--clay)',unchanged:'var(--stone)',removed:'var(--bad)',moved:'var(--lav)'};
+/* ---------- kinds: render API (ctx) shared by built-in and plugin diagrams ---------- */
+const KINDS=window.VISUALIZE_KINDS=window.VISUALIZE_KINDS||{};
+const _themeHooks=[];new MutationObserver(()=>_themeHooks.forEach(f=>f())).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+/** The context handed to every kind's render(block, ctx). Kinds use only this — never page internals. */
+function makeCtx(el,kind,index){const uid=`k${index}-${kind.replace(/\W/g,'')}`;const css=getComputedStyle(document.documentElement);
+ const statusLabel={new:'new',changed:'changed',removed:'removed',unchanged:'unchanged',moved:'moved'};
+ const ctx={el,d3,uid,kind,
+  token:name=>css.getPropertyValue('--'+name).trim()||`var(--${name})`, /* current value; use var(--x) in markup to follow theme switches */
+  status:s=>({color:statusColour[s]||statusColour.unchanged,label:statusLabel[s]||s}),
+  ref, esc, href:svgHref,
+  svg:({width,height,label})=>d3.select(el).append('svg').attr('viewBox',`0 0 ${width} ${height}`).attr('role','img').attr('aria-label',label||kind),
+  layout:{tree:(root,[w,h])=>d3.tree().nodeSize([w,h])(d3.hierarchy(root,d=>d.children)),
+   /* Shortest distance from roots (BFS): good for state machines — loops point back left. */
+   depth:(nodes,edges)=>{const ids=nodes.map(n=>n.id),incoming=new Set(edges.map(e=>e.to));const roots=ids.filter(i=>!incoming.has(i)),q=roots.length?roots:[ids[0]],D=Object.fromEntries(q.map(i=>[i,0]));
+    while(q.length){const v=q.shift();for(const e of edges)if(e.from===v&&D[e.to]===undefined){D[e.to]=D[v]+1;q.push(e.to);}}
+    ids.forEach(i=>{if(D[i]===undefined)D[i]=0;});return D;},
+   /* Longest-path layering; edges that close a cycle (found by DFS in node order) are ignored, so loops draw as back edges. */
+   layers:(nodes,edges)=>{const ids=nodes.map(n=>n.id),out=Object.fromEntries(ids.map(i=>[i,[]]));edges.forEach(e=>{if(out[e.from]&&out[e.to]!==undefined)out[e.from].push(e);});
+    const state={},back=new Set();const dfs=v=>{state[v]=1;for(const e of out[v]){if(state[e.to]===1)back.add(e);else if(!state[e.to])dfs(e.to);}state[v]=2;};ids.forEach(i=>{if(!state[i])dfs(i);});
+    const fwd=edges.filter(e=>out[e.from]&&out[e.to]!==undefined&&!back.has(e)),L=Object.fromEntries(ids.map(i=>[i,0]));
+    for(let k=0;k<ids.length;k++)for(const e of fwd)if(L[e.to]<=L[e.from])L[e.to]=L[e.from]+1;return L;}},
+  components:{
+   marker:(svg,status='unchanged')=>{const id=`${uid}-ar-${status}`;if(!document.getElementById(id))svg.append('defs').append('marker').attr('id',id).attr('viewBox','0 0 10 10').attr('refX',9).attr('refY',5).attr('markerWidth',7).attr('markerHeight',7).attr('orient','auto-start-reverse').append('path').attr('d','M0,0L10,5L0,10z').attr('fill',statusColour[status]||statusColour.unchanged);return `url(#${id})`;},
+   nodeBox:(g,{x,y,w,h,label,sub,status='unchanged',rounded=false})=>{const n=g.append('g').attr('transform',`translate(${x},${y})`);n.append('rect').attr('width',w).attr('height',h).attr('rx',rounded?h/2:8).attr('fill','var(--card)').attr('stroke',statusColour[status]||statusColour.unchanged).attr('stroke-width',1.8);
+    n.append('text').attr('x',w/2).attr('y',sub?h/2-2:h/2+4).attr('text-anchor','middle').style('font','600 12.5px ui-sans-serif,system-ui').attr('fill','var(--ink)').text(label);if(sub)n.append('text').attr('x',w/2).attr('y',h/2+13).attr('text-anchor','middle').style('font','10px ui-monospace,monospace').attr('fill','var(--faint)').text(sub);return n;},
+   chip:(text,status)=>`<span class="chip"${status?` style="border:1px solid ${statusColour[status]}"`:''}>${esc(text)}</span>`,
+   badge:status=>`<span class="badge ${status==='changed'?'chg':status==='removed'?'brk':''}">${esc(statusLabel[status]||status)}</span>`,
+   legend:items=>`<div class="legend">${items.map(([status,label])=>`<span><i class="sw" style="border-color:${statusColour[status]||statusColour.unchanged}"></i>${esc(label||status)}</span>`).join('')}</div>`,
+   codeBlock:(lines,lang)=>`<table class="gh"><colgroup><col style="width:44px"><col></colgroup><tbody>${codeRows(lines,lang)}</tbody></table>`},
+  onResize:fn=>{requestAnimationFrame(fn);new ResizeObserver(fn).observe(el);},
+  onThemeChange:fn=>_themeHooks.push(fn)};
+ return ctx;}
+
+/** SVG link for a `path:line` ref (head commit). */
+function svgHref(r){const m=/^(?:(test|base):\s*)?((?:[\w.\-]+\/)+[\w.\-]+):(\d+)$/.exec((r||'').trim());return m?`https://github.com/__REPO__/blob/${m[1]==='base'?P.base_sha:P.head_sha}/${m[2]}#L${m[3]}`:null;}
+
+
+function matrixHtml(){const E=P.examples;if(!E)return'';const rs=E.rows,t=c=>(typeof c==='string'?c:c.text)!=='untested';
+ const both=rs.filter(r=>r.cells.every(t)).length,some=rs.filter(r=>r.cells.some(t)&&!r.cells.every(t)).length;
+ const cover=E.columns.length>1?`<span><b>${both}/${rs.length}</b> cases tested on every path</span><span><b>${some}</b> only on some paths</span><span><span class="v untested">untested</span> no test covers that path</span>`:`<span><b>${both}/${rs.length}</b> cases asserted by tests</span>`;
+ const cell=c=>{const tx=typeof c==='string'?c:c.text,tone=typeof c==='string'?(/^yes/.test(c)?'yes':/^no$/.test(c)?'no':/error/.test(c)?'err':c==='untested'?'untested':c==='n/a'?'na':'plain'):c.tone;return `<td><span class="v ${tone}">${esc(tx)}</span></td>`;};
+ return `<section aria-labelledby="h-ex"><h2 id="h-ex">${esc(E.title)}</h2><p class="q">${esc(E.question||'')}</p>${E.no_coverage?'':`<div class="coverage">${cover}</div>`}
+ <table class="matrix"><thead><tr><th>${esc(E.case_header||'When…')}</th>${E.columns.map(c=>`<th>${esc(c)}</th>`).join('')}<th class="t">${P.mode==='proposal'?'Source':'Test'}</th></tr></thead><tbody>
+ ${rs.map(r=>`<tr class="${r.new?'new':''}"><td class="case">${esc(r.case)}${r.new&&E.new_label?`<span class="tag">${esc(E.new_label)}</span>`:''}</td>${r.cells.map(cell).join('')}<td class="t">${ref(r.ref)}</td></tr>`).join('')}
+ </tbody></table>${E.footnote?`<p class="foot">${esc(E.footnote.text)}${ref(E.footnote.ref)}</p>`:''}</section>`;}
+
+function cardsHtml(){const C=P.contract_cards||[];if(!C.length)return'';
+ const body=c=>c.generated?`<p class="gh-note">${c.members} generated entries mirror the schema changes above.<br>${esc(c.file)}</p>`:c.change==='added'&&c.code?`<table class="gh"><colgroup><col style="width:44px"><col></colgroup><tbody>${codeRows(c.code,langOf(c.file))}</tbody></table>`
+  :(()=>{colourFile(c.file,langOf(c.file));const hs=trim(P.diff[c.file]||[],c.range?[c.range]:null);return hs.length?`<table class="gh">${cols()}<tbody>${hs.map(h=>hunkRows(h,langOf(c.file))).join('')}</tbody></table>`:'<p class="gh-note">Change detected but not visible in the diff hunks.</p>';})();
+ const badge=c=>c.breaking===true?'<span class="badge brk">breaking</span>':c.breaking==='review'?'<span class="badge chg">review</span>':c.change==='added'?'<span class="badge">new</span>':'<span class="badge chg">changed</span>';
+ return `<section aria-labelledby="h-c"><h2 id="h-c">${P.mode==='proposal'?'Proposed model':'Interface changes'}</h2><p class="q">${P.mode==='proposal'?'Proposed definitions (not code yet). New types show their definition; changed ones a diff against today.':'Detected from the code (base vs head). New types show their definition; changed ones their diff.'}</p>
+ ${C.map((c,i)=>`<details class="gh card" ${i<4&&!c.generated?'open':''}><summary><span class="chev">▸</span>${badge(c)}<span class="surf">${esc(c.surface)}</span><b>${esc(c.name)}</b>${c.members&&c.change!=='added'?`<span class="surf">${c.members} member change(s)</span>`:''}<span class="fp" style="flex:1;text-align:right">${c.generated?'':esc(c.file)+(c.range?':'+c.range[0]:'')}</span>${c.ref?ref(c.ref):''}</summary>${body(c)}</details>`).join('')}</section>`;}
+
+/* ---------- locator ---------- */
+let items=[],sel=null;
+const colour={changed:'var(--clay)',new:'var(--sage)',unchanged:'var(--stone)',moved:'var(--lav)'};
+const fileOf=d=>(d.defs||[]).map(n=>byName[n]&&byName[n].file).find(Boolean)||(/^(?:test:\s*)?((?:[\w.\-]+\/)+[\w.\-]+):\d+$/.exec(d.ref||'')||[])[1]||null;
+function drawLocator(){
+ const W=520,NW=440,FW=252,GAP=30,cx=W/2,LH=17,PH=13;
+ const chars=(w,px)=>Math.max(8,Math.floor((w-24)/px));
+ /** Wrap text into lines of ≤ n chars, breaking at spaces, dots, slashes and underscores; never truncates. */
+ const wrap=(s,n)=>{const out=[];let rest=s||'';while(rest.length>n){let cut=-1;for(const c of [' ','.','/','_','→','(']){const i=rest.lastIndexOf(c,n);if(i>cut)cut=i;}
+   if(cut<n*0.4)cut=n;else cut+=1;out.push(rest.slice(0,cut).trimEnd());rest=rest.slice(cut).trimStart();}if(rest)out.push(rest);return out;};
+ const lay=d=>{d.lbl=wrap(d.label,chars(d.w,7.6));d.pth=d.file?wrap(d.file,chars(d.w,6.3)):[];d.h=24+d.lbl.length*LH+(d.pth.length?6+d.pth.length*PH:0)+8;};
+ items=L.nodes.map(n=>({...n,x:cx-NW/2,w:NW}));items.forEach(d=>{d.file=fileOf(d);lay(d);});
+ let y=16;items.forEach(d=>{d.y=y;y+=d.h+GAP;});const last=items[items.length-1];let H=last.y+last.h+20;
+ const links=items.slice(0,-1).map((n,i)=>[n,items[i+1]]);
+ if(F){const fy=last.y+last.h+GAP+12;const off={...F.off,id:'off',layer:F.off.layer||'flag off',x:cx-FW-4,y:fy,w:FW},on={...F.on,id:'on',layer:F.on.layer||'flag on',x:cx+4,y:fy,w:FW};
+  [off,on].forEach(d=>{d.file=fileOf(d);lay(d);});const fh=Math.max(off.h,on.h);off.h=on.h=fh;items.push(off,on);links.push([last,off],[last,on]);H=fy+fh+20;}
+ const svg=d3.select('#loc').attr('viewBox',`0 0 ${W} ${H}`);svg.selectAll('*').remove();
+ svg.selectAll('path').data(links).join('path').attr('class','link').attr('d',([a,b])=>`M${a.x+a.w/2},${a.y+a.h} C${a.x+a.w/2},${a.y+a.h+GAP/2} ${b.x+b.w/2},${b.y-GAP/2} ${b.x+b.w/2},${b.y}`);
+ const g=svg.selectAll('g.node').data(items).join('g').attr('class','node').attr('tabindex',0).attr('role','button')
+  .attr('aria-label',d=>`${d.layer}: ${d.label}, ${d.status}${d.file?', '+d.file:''}`).attr('transform',d=>`translate(${d.x},${d.y})`);
+ g.append('rect').attr('width',d=>d.w).attr('height',d=>d.h).attr('rx',10).attr('stroke',d=>colour[d.status]).attr('stroke-dasharray',d=>d.status==='unchanged'?'5 4':null);
+ g.append('text').attr('class','ly').attr('x',12).attr('y',16).text(d=>`${d.layer} · ${P.mode==='code'&&d.status==='new'?'focus':P.mode==='code'&&d.status==='unchanged'?'context':d.status}`);
+ g.each(function(d){const t=d3.select(this);
+  const lb=t.append('text').attr('class','lb');d.lbl.forEach((l,i)=>lb.append('tspan').attr('x',12).attr('y',36+i*LH).text(l));
+  if(d.pth.length){const pt=t.append('text').attr('class','pth');const y0=36+(d.lbl.length-1)*LH+6+PH+2;d.pth.forEach((l,i)=>pt.append('tspan').attr('x',12).attr('y',y0+i*PH).text(l));}});
+ g.append('title').text(d=>d.file||'');
+ g.on('click',(e,d)=>select(d)).on('keydown',(e,d)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();select(d);}});
+ select(sel?items.find(i=>i.id===sel.id):items.find(n=>n.status!=='unchanged')||items[0]);}
+
+/** Signature only: GraphQL operation line, else the Python signature. */
+function signature(d){const inp=(d.defs||[]).map(n=>P.inputs&&P.inputs[n]).find(Boolean);if(!inp)return'';
+ const text=inp.sdl?inp.sdl.split('\n')[0]:inp.signature;
+ const hl=highlight(text.split('\n'),inp.sdl?'graphql':'python').join('\n');
+ return `<div class="sig"><h4>${inp.sdl?'GraphQL operation':'Signature'}</h4><pre class="code">${hl}</pre></div>`;}
+/** Files the node touches, in order, each with its own head line ranges (definitions in that file, else the ref line). */
+function filesOf(d){const by=new Map();
+ for(const e of (d.defs||[]).map(n=>byName[n]).filter(Boolean)){if(!by.has(e.file))by.set(e.file,[]);if(e.after&&e.after.end)by.get(e.file).push([e.after.line,e.after.end]);}
+ const m=/^(?:test:\s*)?((?:[\w.\-]+\/)+[\w.\-]+):(\d+)$/.exec(d.ref||'');
+ if(m){if(!by.has(m[1]))by.set(m[1],[]);if(!by.get(m[1]).length)by.get(m[1]).push([+m[2]-3,+m[2]+12]);}
+ if(!by.size&&d.file)by.set(d.file,[]);return [...by.entries()];}
+/** Behaviour explanation: what it does (new), before → after (changed/moved), and impact. */
+function explainHtml(d){const x=d.explain;if(!x)return'';const li=xs=>(xs||[]).map(i=>`<li>${esc(i.text)}${ref(i.ref)}</li>`).join('');let h='';
+ if(x.what&&x.what.length)h+=`<div><h4>What it does</h4><ul>${li(x.what)}</ul></div>`;
+ if((x.before&&x.before.length)||(x.after&&x.after.length))h+=`<div class="ba"><div class="b"><h4>${d.status==='moved'?'Before (where it lived)':'Before'}</h4><ul>${li(x.before)}</ul></div><div class="a"><h4>After</h4><ul>${li(x.after)}</ul></div></div>`;
+ if(x.impact&&x.impact.length)h+=`<div class="imp"><h4>${P.mode==='code'?'Side effects':'Impact'}</h4><ul>${li(x.impact)}</ul></div>`;
+ return h?`<div class="explain">${h}</div>`:'';}
+function select(d){if(!d)return;sel=d;d3.selectAll('#loc g.node').classed('sel',x=>x===d);
+ d3.select('#detail').html(`<h3>${esc(d.label)}</h3>${d.file?`<div class="path">${esc(d.file)}</div>`:''}<p class="what">${esc(d.summary||(P.mode==='code'?'':'Unchanged by this PR'))}${ref(d.ref)}</p>${explainHtml(d)}${signature(d)}${(()=>{const fs=filesOf(d);return fs.length?fs.map(([f,rs],i)=>fileDiff(f,rs,i<2)).join(''):(P.mode==='proposal'||P.mode==='code'?'':'<p class="what">Not part of this PR’s diff.</p>');})()}`);}
+render();
+</script>
+</body></html>
