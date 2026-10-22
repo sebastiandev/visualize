@@ -116,9 +116,7 @@ function hunkRows(h,lang){if(!coloured(h))colourHunk(h,lang);const split=view===
   if(b.ctx){const s=b.ctx.hn;rows+=split?`<tr><td class="num">${b.ctx.o}</td><td>${b.ctx.ho}</td><td class="num">${b.ctx.n}</td><td>${s}</td></tr>`:`<tr><td class="num">${b.ctx.o}</td><td class="num">${b.ctx.n}</td><td class="sign"></td><td>${s}</td></tr>`;continue;}
   const n=Math.max(b.dels.length,b.adds.length),pair=[];
   for(let i=0;i<n;i++){const d=b.dels[i],a=b.adds[i];if(d&&a){const [p,q]=diffSpan(d.s,a.s);pair.push([markRange(d.ho,p,d.s.length-q,'wdel'),markRange(a.hn,p,a.s.length-q,'wadd')]);}else pair.push([d?d.ho:null,a?a.hn:null]);}
-  // Split view: pure additions / removals use the full width (no empty half), like reading a new file.
-  if(split&&!b.dels.length){b.adds.forEach(a=>{rows+=`<tr><td class="num add">${a.n}</td><td class="add" colspan="3">${a.hn}</td></tr>`;});continue;}
-  if(split&&!b.adds.length){b.dels.forEach(d=>{rows+=`<tr><td class="num del">${d.o}</td><td class="del" colspan="3">${d.ho}</td></tr>`;});continue;}
+  // Split view, GitHub style: base (removed) always on the left, head (added) always on the right.
   if(split)for(let i=0;i<n;i++){const d=b.dels[i],a=b.adds[i];rows+=`<tr>${d?`<td class="num del">${d.o}</td><td class="del">${pair[i][0]}</td>`:'<td class="num empty"></td><td class="empty"></td>'}${a?`<td class="num add">${a.n}</td><td class="add">${pair[i][1]}</td>`:'<td class="num empty"></td><td class="empty"></td>'}</tr>`;}
   else{b.dels.forEach((d,i)=>{rows+=`<tr><td class="num del">${d.o}</td><td class="num del"></td><td class="sign del">-</td><td class="del">${pair[i][0]}</td></tr>`;});
    b.adds.forEach((a,i)=>{rows+=`<tr><td class="num add"></td><td class="num add">${a.n}</td><td class="sign add">+</td><td class="add">${pair[i][1]}</td></tr>`;});}}
