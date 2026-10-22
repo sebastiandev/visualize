@@ -21,6 +21,10 @@ const CHROME=process.env.CHROME||'/Applications/Google Chrome.app/Contents/MacOS
     for(const td of tds)if(td.textContent&&!raw.has(td.textContent))mismatch++;}
    let overlaps=0;for(const a of document.querySelectorAll('.view svg a')){const c=a.querySelector('circle'),t=a.querySelector('text.ml');if(c&&t){const cb=c.getBBox(),tb=t.getBBox();if(cb.x+cb.width>tb.x+1)overlaps++;}}
    for(const n of document.querySelectorAll('.dnode')){const r=n.querySelector('rect').getBBox();for(const t of n.querySelectorAll('text')){const b=t.getBBox();if(b.x<r.x-1||b.x+b.width>r.x+r.width+1)overlaps++;}}
+   for(const w of document.querySelectorAll('.ent-wrap')){const W=w.getBoundingClientRect();const cards=[...w.querySelectorAll('.ent')].map(c=>{const r=c.getBoundingClientRect();return {x:r.left-W.left+3,y:r.top-W.top+3,r:r.right-W.left-3,b:r.bottom-W.top-3};});
+    const inside=(x,y)=>cards.some(c=>x>c.x&&x<c.r&&y>c.y&&y<c.b);
+    for(const path of w.querySelectorAll('svg.edges path:not([d^="M0,0"])')){const L=path.getTotalLength();let hit=false;for(let t=10;t<L-10;t+=6){const pt=path.getPointAtLength(t);if(inside(pt.x,pt.y)){hit=true;break;}}if(hit)overlaps++;}
+    for(const r of w.querySelectorAll('svg.edges rect')){const b=r.getBBox();if(cards.some(c=>b.x<c.r&&b.x+b.width>c.x&&b.y<c.b&&b.y+b.height>c.y))overlaps++;}}
    const long=[...document.querySelectorAll('.detail .explain li, ul.watch li')].filter(li=>li.firstChild&&li.firstChild.textContent.trim().split(/\\s+/).length>18).length;
    const views=[...document.querySelectorAll('.view[data-view]')].map(el=>{const hard=[...el.querySelectorAll('[fill],[stroke]')].flatMap(n=>['fill','stroke'].map(k=>n.getAttribute(k))).filter(v=>v&&/^#|^rgb/i.test(v));
      return {view:el.dataset.view,drawn:el.children.length>0,error:/^View error/.test(el.textContent)?el.textContent.slice(0,120):null,hardcodedColours:hard.length};});

@@ -89,6 +89,8 @@ def review(signals: list[dict], doc: dict) -> dict:
         d = decisions.get(s["view"])
         if d is None:
             out["unaddressed"].append(f"{s['view']}: {s['signal']}")
+        elif d.get("added"):
+            out["unaddressed"].append(f"{s['view']}: {s['signal']} — view_decisions says added, but the doc has no such section")
         else:
             out["declined"].append(f"{s['view']}: {s['signal']} — declined: {d.get('why', 'no reason given')}")
     return out

@@ -3,7 +3,7 @@ svg{width:100%;height:auto;display:block}text{font-family:ui-sans-serif,system-u
 .ent-wrap svg.edges{position:absolute;inset:0;pointer-events:none;overflow:visible}
 .ent-wrap svg.edges path{fill:none;stroke:var(--faint);stroke-width:1.5}
 .ent-wrap svg.edges text{font:11px ui-sans-serif,system-ui;fill:var(--muted)}
-.ent-grid{display:grid;gap:28px 96px;align-items:start;position:relative}
+.ent-grid{display:grid;row-gap:40px;align-items:start;position:relative}
 .ent{border:1.5px solid var(--line);border-radius:10px;background:var(--card);overflow:hidden;font-size:12.5px}
 .ent.new{border-color:var(--sage)}
 .ent.changed{border-color:var(--clay)}
@@ -21,3 +21,7 @@ svg{width:100%;height:auto;display:block}text{font-family:ui-sans-serif,system-u
 .ent li.changed{background:var(--amber-soft)}
 .ent li .t{color:var(--gh-ty);margin-left:auto;padding-left:10px;text-align:right}
 .ent li .nt{display:block;font:11px ui-sans-serif,system-ui;color:var(--muted)}
+.ent-wrap svg.edges text.num{font:700 10px ui-sans-serif,system-ui;fill:var(--ink)}
+.ent-notes{margin:14px 0 0;padding-left:22px;font-size:12.5px;color:var(--muted);columns:2 320px}
+.ent-notes:empty{display:none}
+.ent-notes li::marker{font-weight:700;color:var(--ink)}
