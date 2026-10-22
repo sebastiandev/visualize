@@ -1,6 +1,6 @@
 {
   "required": [
-    "type",
+    "view",
     "title",
     "entities"
   ],

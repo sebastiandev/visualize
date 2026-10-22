@@ -1,6 +1,6 @@
 {
   "required": [
-    "type",
+    "view",
     "title",
     "actors",
     "steps"
@@ -14,11 +14,11 @@
     },
     "actors": {
       "type": "array",
-      "description": "[{id, label, kind: client|api|command|action|db|events|external, file?}] 3\u20136"
+      "description": "[{id, label, kind: client|api|command|action|db|events|external, file?}] 3–6"
     },
     "steps": {
       "type": "array",
-      "description": "[{from, to, label \u2264 6 words, kind: call|return|event|write|read, status, branch?, ref}] \u2264 14"
+      "description": "[{from, to, label ≤ 6 words, kind: call|return|event|write|read, status, branch?, ref}] ≤ 14"
     }
   }
 }

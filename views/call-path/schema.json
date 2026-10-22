@@ -1,0 +1,22 @@
+{
+  "required": [
+    "view",
+    "nodes"
+  ],
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "question": {
+      "type": "string"
+    },
+    "nodes": {
+      "type": "array",
+      "description": "[{id, label, layer, status, summary, ref, defs?, explain?: {what, before, after, impact: [{text, ref}]}}] 3–6"
+    },
+    "fork": {
+      "type": "object",
+      "description": "{label, off: node, on: node} — two branch nodes after the last node"
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "required": [
+    "view"
+  ],
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "cards": {
+      "type": "array"
+    }
+  }
+}

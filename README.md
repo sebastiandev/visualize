@@ -3,14 +3,14 @@
 Explain code, pull requests and designs as **self-contained interactive HTML pages**, written by a coding agent.
 
 Code gathers facts (diffs, merge-base, interface changes, definitions, signatures, sources); the agent writes
-the explanation as `page.json`; the tool renders it and checks the result in headless Chrome. Pages work
+the explanation as `doc.json`; the tool renders it and checks the result in headless Chrome. Pages work
 offline, have light/dark themes, foldable sections, GitHub-style diffs with syntax colours, and D3 diagrams.
 
 ## Contents
 
 - [Install](#install) · [Agent installation guide](#agent-installation-guide)
-- [Output](#output) · [Commands](#commands): `facts` · `suggest` · `explain` · `kinds` · `config` · `design`
-- [Writing page.json](#writing-pagejson) · [Diagrams and kinds](#diagrams-and-kinds) · [Configuration](#configuration) · [Design tokens](#design-tokens)
+- [Output](#output) · [Commands](#commands): `facts` · `suggest` · `explain` · `views` · `config` · `design`
+- [Writing the doc](#writing-the-doc) · [Views](#views) · [Configuration](#configuration) · [Design tokens](#design-tokens)
 - [How it works](#how-it-works) · [Troubleshooting](#troubleshooting)
 
 ## Output
@@ -21,7 +21,7 @@ The doc (the explanation itself) is written by an agent; the other commands help
 | Step | Command | Who | Produces |
 |---|---|---|---|
 | 1 | `visualize facts …` | tool | a facts folder: diff vs merge-base, changed definitions, interface changes |
-| 2 | `visualize suggest <facts>` | tool | a shortlist of diagram kinds (scored by Jev when configured) |
+| 2 | `visualize suggest <facts>` | tool | a shortlist of views (scored by Jev when configured) |
 | 3 | — | agent | `doc.json`: call path, explanations, tests, diagrams, all cited |
 | 4 | `visualize explain doc.json --facts <folder>` | tool | **the HTML page**, checked in headless Chrome |
 
@@ -70,9 +70,9 @@ Instructions for a coding agent asked to install visualize:
 | `visualize facts --diff FILE\|- --base REF [--head REF]` | Facts for a diff you already have; rejected if it doesn't match the files at those refs. |
 | `visualize facts --pr N [--repo o/r]` | Facts for a PR; reads local git when its commits are present, else GitHub. |
 | `visualize facts --code PATH[::Symbol]` | Facts for a part of the code (no change): sources, definitions, callers, tests. |
-| `visualize suggest [FACTS] [--brief TEXT]` | Diagram kinds with their "use when" rule, scored by Jev when available. |
+| `visualize suggest [FACTS] [--brief TEXT]` | Views with their "use when" rule, scored by Jev when available. |
 | `visualize explain DOC.json [--facts DIR] [-o FILE] [--keep-versions]` | Render + check → the HTML page. Without `--facts`, files cited as `path:line` load from the current repo. |
-| `visualize kinds` · `config` · `design` | List kinds · merged config · design tokens. |
+| `visualize views` · `config` · `design` | List views · merged config · design tokens. |
 | `visualize install` / `uninstall` | Create / remove the symlinks. |
 
 `facts` options for `--local`/`--diff`: `--title`, `--body-file`, `-o DIR` (default `~/.cache/visualize/<repo>/<key>/facts`).
@@ -103,14 +103,16 @@ git diff main... | visualize facts --diff - --base main
 cat > guard.json <<'EOF'
 {
   "title": "How the reprint guard works",
-  "tldr": {"text": "Reprint only when a shipment row exists.", "ref": "app/prelabel/use_case.py:537"},
-  "locator": {"title": "How the question travels", "nodes": [
-    {"id": "uc", "label": "GetPrelabel._shipment_was_recorded", "layer": "use case", "status": "new",
-     "ref": "app/prelabel/use_case.py:537",
-     "explain": {"what": [{"text": "Delegates to the HasRecordedShipment port.", "ref": "app/prelabel/use_case.py:537"}]}},
-    {"id": "db", "label": "RecordedShipmentChecker", "layer": "adapter", "status": "unchanged",
-     "ref": "app/prelabel/checker.py:21"}
-  ]}
+  "sections": [
+    {"view": "tldr", "text": "Reprint only when a shipment row exists.", "ref": "app/prelabel/use_case.py:537"},
+    {"view": "call-path", "title": "How the question travels", "nodes": [
+      {"id": "uc", "label": "GetPrelabel._shipment_was_recorded", "layer": "use case", "status": "new",
+       "ref": "app/prelabel/use_case.py:537",
+       "explain": {"what": [{"text": "Delegates to the HasRecordedShipment port.", "ref": "app/prelabel/use_case.py:537"}]}},
+      {"id": "db", "label": "RecordedShipmentChecker", "layer": "adapter", "status": "unchanged",
+       "ref": "app/prelabel/checker.py:21"}
+    ]}
+  ]
 }
 EOF
 visualize explain guard.json                  # → guard.html, with source panels for the cited files
@@ -122,39 +124,41 @@ visualize suggest --brief "Reserve stock per sales channel…"
 visualize explain ~/.cache/visualize/_present/segmentation/doc.json --keep-versions   # v1, v2, … on every change
 ```
 
-## Writing page.json
+## Writing the doc
 
-The full field reference is `skill/references/page-format.md`; the agent workflow is `skill/SKILL.md`.
-Blocks are a vocabulary — use what serves the explanation:
+A doc is a title plus an ordered list of `sections`; each names the **view** that draws it. Full reference:
+`skill/references/page-format.md`; agent workflow: `skill/SKILL.md`. Views are a vocabulary — use what serves
+the explanation, in any order:
 
-| Block | Shows |
+| View | Shows |
 |---|---|
 | `tldr` | one-sentence takeaway |
-| `locator` (+ `fork`) | a path through components with branches; per node `explain` (what / before / after / impact) and a source or diff panel |
-| `diagrams` | any kind from `visualize kinds` (sequence, decisions, entities, state-machine, yours) |
-| `examples` | matrix of cases × variants (tests or scenarios), with `untested` gaps |
-| `model_cards` | proposed definitions (new) or before/after diffs (changed), GitHub-style |
-| `watch` (+ `watch_title`) | gotchas, open decisions, reviewer notes |
+| `call-path` (+ `fork`) | a path through components with branches; per node `explain` (what / before / after / impact) and a source or diff panel |
+| `sequence` · `decisions` · `entities` · `state-machine` | interactions · rules and outcomes · data shapes · lifecycles |
+| `matrix` | cases × variants (tests or scenarios), with `untested` gaps |
+| `interface-changes` | detected interface changes (from facts), or authored `cards` for a proposed model |
+| `watch` | gotchas, open decisions, reviewer notes |
 
 Rules: every item has a `ref` (`path:line`, `test: path:line`, `base: path:line`, `label|https://…`, or
-`PR description`); nothing is invented; text stays short.
+`PR description`); nothing is invented; text stays short. Docs in the older page shape still render.
 
-## Diagrams and kinds
+## Views
 
-Every kind is a plugin folder — including the defaults shipped in `kinds/`: `sequence`, `decisions`,
-`entities`, `state-machine`. Add or override one **without changing code** in `~/.config/visualize/kinds/<name>/`
-or `<repo>/.visualize/kinds/<name>/` (later folders win on name clashes):
+Every section is drawn by a view, and every view is a plugin folder — including the defaults in `views/`.
+Add or override one **without changing code** in `~/.config/visualize/views/<name>/` or
+`<repo>/.visualize/views/<name>/` (later folders win on name clashes):
 
 | File | Role |
 |---|---|
-| `guideline.md` | when to use it, what to ask (present), what to extract (explain) — read by the agent |
+| `guideline.md` | when to use it, what to ask (present), what to extract (explain) — read by the agent and Jev |
 | `schema.json` | required fields/types, validated at build |
 | `render.js` | `export default function render(block, ctx) { … }` |
-| `style.css` | optional, auto-scoped to the kind |
+| `style.css` | optional, auto-scoped to the view (`@media` supported) |
 
 `ctx` gives: `el`, `d3`, `svg()`, `token()`, `status()`, `ref()`, `components` (marker, nodeBox, chip, badge,
-legend, codeBlock), `layout` (tree, layers, depth), `onResize`, `onThemeChange`. Use `var(--token)` colours
-only — `check` fails kinds that draw nothing, throw, or hard-code colours. Copy any folder in `kinds/` as a starting point.
+legend, codeBlock), `layout` (tree, layers, depth), `onResize`, `onThemeChange`, `page`, `defs`, `code`
+(fileDiff, fileSource, diffTable, highlight, langOf, rows), `state`, `title()`. Use `var(--token)` colours only —
+`check` fails views that draw nothing, throw, or hard-code colours. Copy any folder in `views/` as a starting point.
 
 ## Configuration
 
@@ -184,12 +188,12 @@ fallback = ""      # only used outside a git repo, and announced
 
 A repo-specific `.visualize.toml` you don't want to commit can be ignored locally via `.git/info/exclude`.
 
-### Jev kind hints (optional)
+### Jev view hints (optional)
 
-With a [TypeSafe](https://typesafe.ai) key, `visualize suggest` asks Jev which diagram kinds fit the change
+With a [TypeSafe](https://typesafe.ai) key, `visualize suggest` asks Jev which views fit the change
 (e.g. `decisions 0.89 suggest · sequence 0.34 skip`). The agent reads it as a shortlist and
 still decides, giving a reason when it disagrees. Only a summary is sent (title, description, file paths,
-layers, counts), never file contents. Each kind's `## Use when` section becomes the question.
+layers, counts), never file contents. Each view's `## Use when` section becomes the question.
 
 - Key: `TYPESAFE_API_KEY`, or the macOS keychain item `typesafe-api-key`.
 - No key → no hints; everything else works the same.
@@ -217,10 +221,10 @@ Unknown token names are reported and ignored.
 
 1. **Facts** (deterministic, local git first): diff against the **merge-base**, interface delta (added / breaking / review),
    definition diff and signatures — or, for code, sources, callers and tests.
-2. **Explanation** (agent): `page.json`, following the skill.
+2. **Explanation** (agent): `doc.json`, following the skill.
 3. **Explain** (render): one HTML file with everything inlined (pinned D3 7.9 and highlight.js 11.10).
 4. **Check** (headless Chrome): console errors, overflow (desktop/mobile), missing explanations, diff/source
-   text integrity, diagram overlaps, per-kind problems.
+   text integrity, diagram overlaps, per-view problems.
 
 Facts folders live in `~/.cache/visualize/<owner>__<repo>/<key>/facts` (`pr-N`, `local-<branch>`, `diff-<hash>`, `code-<target>`).
 

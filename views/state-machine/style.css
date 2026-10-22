@@ -1,3 +1,4 @@
+svg{width:100%;height:auto;display:block}text{font-family:ui-sans-serif,system-ui}
 .sm-label { font: 11.5px ui-sans-serif, system-ui; fill: var(--muted); }
 .sm-label-bg { fill: var(--card); }
 .sm-edge { fill: none; stroke-width: 1.8; }

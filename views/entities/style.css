@@ -1,3 +1,4 @@
+svg{width:100%;height:auto;display:block}text{font-family:ui-sans-serif,system-ui}
 .ent-wrap{position:relative}
 .ent-wrap svg.edges{position:absolute;inset:0;pointer-events:none;overflow:visible}
 .ent-wrap svg.edges path{fill:none;stroke:var(--faint);stroke-width:1.5}

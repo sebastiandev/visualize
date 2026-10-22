@@ -4,9 +4,9 @@
     visualize facts --diff FILE|- --base REF [--head REF] facts for a diff you already have
     visualize facts --pr N                               facts for a PR (local git when its commits are here, else GitHub)
     visualize facts --code PATH[::Symbol]                facts for a part of the code (no change)
-    visualize suggest [FACTS_DIR | --brief TEXT]         shortlist of kinds for the doc (Jev scores when available)
+    visualize suggest [FACTS_DIR | --brief TEXT]         shortlist of views for the doc (Jev scores when available)
     visualize explain DOC.json [--facts DIR] [-o FILE] [--keep-versions]   render + check → the HTML page
-    visualize kinds | config | design                    list kinds · merged config · design tokens
+    visualize views | config | design                    list views · merged config · design tokens
     visualize install | uninstall                        link this repo into ~/.agents and ~/.local/bin
 
 The agent loop: facts → suggest → write the doc (visualize skill) → explain. `explain` is the only command that
@@ -23,7 +23,7 @@ from pathlib import Path
 from visualize.build import ASSETS, from_facts, render
 from visualize.config import load as load_config, repo_root
 from visualize.definitions import definitions, signatures
-from visualize.workspace import default_repo, use_local
+from visualize.workspace import default_repo, fetch, use_local
 
 
 def run_check(html: Path, shots: Path) -> int:
@@ -34,19 +34,24 @@ def run_check(html: Path, shots: Path) -> int:
     return result.returncode
 
 
-def load_cited(page_text: str, root: Path, sources: dict, defs: list) -> None:
-    """Add every `path:line`-cited file from the working tree to `sources` (+ its Python definitions to `defs`)."""
+def load_cited(page_text: str, read, sources: dict, defs: list) -> None:
+    """Add every `path:line`-cited file to `sources` (+ its Python definitions to `defs`, never overriding known names).
+
+    `read(path)` returns the file at the doc's commit (head of the change, or the working tree), else None.
+    """
+    known = {d["name"] for d in defs}
     cited = set(re.findall(r'"(?:test:\s*)?((?:[\w.\-]+/)+[\w.\-]+\.\w+):\d+(?:-\d+)?"', page_text))
     for f in sorted(cited - set(sources)):
-        if (root / f).is_file():
-            src = (root / f).read_text(errors="replace")
-            sources[f] = src.splitlines()
-            if f.endswith(".py"):
-                try:
-                    defs += [{"file": f, "name": n, "change": "unchanged", "before": None, "after": d, "ref": f"{f}:{d['line']}"}
-                             for n, d in definitions(src).items()]
-                except SyntaxError:
-                    pass
+        src = read(f)
+        if src is None:
+            continue
+        sources[f] = src.splitlines()
+        if f.endswith(".py"):
+            try:
+                defs += [{"file": f, "name": n, "change": "unchanged", "before": None, "after": d, "ref": f"{f}:{d['line']}"}
+                         for n, d in definitions(src).items() if n not in known]
+            except SyntaxError:
+                pass
 
 
 def _snapshot(doc: Path, doc_text: str, html_text: str) -> int:
@@ -70,12 +75,15 @@ def explain(doc: Path, facts_dir: Path | None, out: Path | None, keep_versions: 
     if facts_dir:
         repo = repo or from_facts(page, facts_dir)
     sources, defs = dict(page.get("sources") or {}), list(page.get("defdiff") or [])
-    if root:
-        load_cited(doc_text, root, sources, defs)
-        if not facts_dir:
-            head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, capture_output=True, text=True).stdout.strip()
-            page.setdefault("head_sha", head)
-            page.setdefault("base_sha", head)
+    if facts_dir and page.get("diff"):
+        pass  # a change: panels show the diff; cited files are not loaded (they would not be at the change's commit)
+    elif facts_dir:
+        load_cited(doc_text, lambda f: fetch(repo, f, page["head_sha"]), sources, defs)
+    elif root:
+        load_cited(doc_text, lambda f: (root / f).read_text(errors="replace") if (root / f).is_file() else None, sources, defs)
+        head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, capture_output=True, text=True).stdout.strip()
+        page.setdefault("head_sha", head)
+        page.setdefault("base_sha", head)
     page["sources"], page["defdiff"] = sources, defs
     page.setdefault("mode", "pr" if page.get("diff") else "code" if sources else "proposal")
     if not repo and root:
@@ -83,6 +91,9 @@ def explain(doc: Path, facts_dir: Path | None, out: Path | None, keep_versions: 
             repo = default_repo()
         except RuntimeError:
             repo = ""
+    if repo and not facts_dir and page.get("head_sha"):
+        page.setdefault("url", f"https://github.com/{repo}/tree/{page['head_sha']}")
+        page.setdefault("source_label", f"{repo} @ {page['head_sha'][:10]}")
     if repo and defs and not page.get("inputs"):
         page["inputs"] = signatures(repo, [d for d in defs if d.get("after")], page.get("head_sha", ""), set(), "")
     html = out or doc.with_suffix(".html")
@@ -94,9 +105,9 @@ def explain(doc: Path, facts_dir: Path | None, out: Path | None, keep_versions: 
 
 
 def suggest(facts_dir: Path | None, brief: str | None) -> int:
-    """Kinds with their 'Use when' rule; scored by Jev when a key is available."""
+    """Views with their 'Use when' rule; scored by Jev when a key is available."""
     from visualize import jev
-    from visualize.kinds import discover
+    from visualize.views import discover
     cfg = load_config()
     if facts_dir:
         f = json.loads((facts_dir / "facts.json").read_text())
@@ -105,13 +116,13 @@ def suggest(facts_dir: Path | None, brief: str | None) -> int:
         mode = "change" if f["kind"] == "change" else "part of the code"
     else:
         state, mode = {"design_brief": (brief or "")[:4000]}, "design proposal"
-    scored = {h["kind"]: h for h in (jev.hints(state, cfg, mode) or {}).get("kinds", [])}
-    rows = [{"kind": name, "p": scored.get(name, {}).get("p"), "band": scored.get(name, {}).get("band"),
+    scored = {h["view"]: h for h in (jev.hints(state, cfg, mode) or {}).get("views", [])}
+    rows = [{"view": name, "p": scored.get(name, {}).get("p"), "band": scored.get(name, {}).get("band"),
              "use_when": jev.use_when(k.read("guideline.md")), "guideline": str(k.dir / "guideline.md")}
             for name, k in discover().items()]
     rows.sort(key=lambda r: -(r["p"] or 0))
-    print(json.dumps({"scored_by": "jev" if scored else None, "kinds": rows,
-                      "note": "Shortlist only: you decide. Explain disagreements with a 'suggest' in diagram_decisions."},
+    print(json.dumps({"scored_by": "jev" if scored else None, "views": rows,
+                      "note": "Shortlist only: you decide. Explain disagreements with a 'suggest' in view_decisions."},
                      indent=1, ensure_ascii=False))
     return 0
 
@@ -132,7 +143,7 @@ def main(argv: list[str] | None = None) -> int:
     fa.add_argument("--body-file", help="description for --local/--diff")
     fa.add_argument("--repo", help="owner/name (default: the repo of the current directory)")
     fa.add_argument("-o", "--out", type=Path, help="facts folder (default: ~/.cache/visualize/<repo>/<key>/facts)")
-    sg = sub.add_parser("suggest", help="shortlist kinds for a facts folder or a design brief")
+    sg = sub.add_parser("suggest", help="shortlist views for a facts folder or a design brief")
     sg.add_argument("facts", type=Path, nargs="?")
     sg.add_argument("--brief", help="design brief text (present / proposal docs)")
     ex = sub.add_parser("explain", help="render a doc (+ facts) into a checked HTML page")
@@ -141,16 +152,16 @@ def main(argv: list[str] | None = None) -> int:
     ex.add_argument("-o", "--out", type=Path, help="HTML path (default: next to the doc)")
     ex.add_argument("--keep-versions", action="store_true", help="keep <doc>.vN.json/.html for every changed render")
     ex.add_argument("--repo", help="owner/name for links (default: from facts or the current repo)")
-    sub.add_parser("kinds", help="list kinds (plugin folders) and where they come from")
+    sub.add_parser("views", help="list views (plugin folders) and where they come from")
     sub.add_parser("config", help="show the merged config and where it came from")
     sub.add_parser("design", help="show design tokens (defaults + overrides) and how to override them")
     sub.add_parser("install", help="link this repo into ~/.agents/{tools,skills} and ~/.local/bin")
     sub.add_parser("uninstall", help="remove those links")
     args = ap.parse_args(argv)
-    if args.command == "kinds":
-        from visualize.kinds import discover, search_dirs
-        for name, kind in discover().items():
-            print(f"{name:<16} {kind.dir}  — {kind.description}")
+    if args.command == "views":
+        from visualize.views import discover, search_dirs
+        for name, view in discover().items():
+            print(f"{name:<18} {view.dir}  — {view.description}")
         print("search:", ", ".join(map(str, search_dirs())))
         return 0
     if args.command == "design":

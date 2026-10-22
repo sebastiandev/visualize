@@ -1,3 +1,4 @@
+svg{width:100%;height:auto;display:block}text{font-family:ui-sans-serif,system-ui}
 .actor rect{fill:var(--card);stroke:var(--line);stroke-width:1.5}
 .actor .al{font:600 13px ui-sans-serif,system-ui;fill:var(--ink)}
 .actor .af{font:10px ui-monospace,monospace;fill:var(--faint)}

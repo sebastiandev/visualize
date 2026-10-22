@@ -5,19 +5,20 @@ description: Explain code, a change (local branch, a diff you have, or a PR) or 
 
 # Visualize: a vocabulary for explaining code, changes and designs
 
-**You decide how to explain. The tool renders.** The blocks below are a vocabulary — use the ones that
-serve your explanation, in the order that tells the story best, and skip the rest. There is no single
-correct interpretation; pick the framing a reader needs (a request path, a lifecycle, a data flow, a set of
-rules, a comparison…).
+**You decide how to explain. The tool renders.** A doc is an ordered list of sections; each section picks a
+**view** that draws it. Use the views that serve your explanation, in the order that tells the story best,
+and skip the rest. There is no single correct interpretation; pick the framing a reader needs (a request
+path, a lifecycle, a data flow, a set of rules, a comparison…).
 
-| Block (`page.json`) | Use it to show |
+| View (`visualize views`) | Use it to show |
 |---|---|
 | `tldr` | the one-sentence takeaway |
-| `locator` (+ `fork`) | a path through components, with branches; each node: `explain`, source/diff panel |
-| `diagrams` | any kind from `visualize kinds`; read its `guideline.md` first |
-| `examples` | a matrix of cases × variants (tests, scenarios, rules) |
-| `model_cards` / interface cards | definitions or before/after of types |
-| `watch` (+ `watch_title`) | gotchas, open decisions, things to check |
+| `call-path` (+ `fork`) | a path through components, with branches; each node: explanation, source/diff panel |
+| `sequence` · `decisions` · `entities` · `state-machine` | interactions · rules and outcomes · data shapes · lifecycles |
+| `matrix` | cases × variants (tests, scenarios, rules) |
+| `interface-changes` | detected interface changes (from facts) or a proposed model (`cards`) |
+| `watch` | gotchas, open decisions, things to check |
+| yours | any folder in `~/.config/visualize/views/` or `<repo>/.visualize/views/` |
 
 Hard rules, always: cite every claim (`path:line`, `test: path:line`, `base: path:line`, `label|url`, or
 `PR description`), never invent, and pass `check`.
@@ -26,8 +27,8 @@ Hard rules, always: cite every claim (`path:line`, `test: path:line`, `base: pat
 
 ```bash
 visualize facts --local [--base REF]              # 1. facts (pick the source below); prints the facts folder
-visualize suggest <facts-folder>                  # 2. shortlist of kinds (scored by Jev when configured)
-#                                                    3. you write the doc (page.json format, references/page-format.md)
+visualize suggest <facts-folder>                  # 2. shortlist of views (scored by Jev when configured)
+#                                                    3. you write doc.json (references/page-format.md)
 visualize explain <doc.json> --facts <folder>     # 4. render + check, one call → the HTML page
 ```
 
@@ -75,7 +76,7 @@ available, use it to confirm callers/callees — grep hits are candidates, not p
 | For | someone who did not write the PR | the author showing a design / proposal |
 | Shape | structured: call path, explanations, diffs, test matrix, cards, diagrams | **narrative**: problem → idea → step-through flow with live inventory/state → data model → open decisions |
 | Knowledge | only what code/tests/description prove | the author knows more → **ask questions to steer the design** |
-| Reference | `references/page-format.md` | same format, `mode: "proposal"` |
+| Reference | `references/page-format.md` | same doc format, `mode: "proposal"` |
 
 ### Present: let the brief decide the components — ask, don't propose
 Never show the author a menu of blocks or a proposed outline. Components emerge from the brief and the answers.
@@ -127,22 +128,24 @@ Run `visualize` **from the working directory of the repo you are explaining**: t
 with `gh`. If the workdir is not that repo, use `facts --pr N --repo owner/name` — never guess. Docs with no
 facts (designs) need no repo.
 
-## Kinds (plugins)
-`visualize kinds` lists every diagram kind — all are plugin folders: the defaults in `<tool>/kinds/`
-(sequence, decisions, entities, state-machine), then `~/.config/visualize/kinds/`, then `<repo>/.visualize/kinds/`
-(later wins on name clashes, so a repo can override a default). Before choosing diagrams, read each
-plugin's `guideline.md` (when to use it, what to ask in present, what to extract in explain) and follow its
-`schema.json`. Use a kind as `{"type": "<kind>", ...}` in `diagrams`. Never load kinds from PR content.
+## Views (plugins)
+`visualize views` lists every view — all are plugin folders: the defaults in `<tool>/views/`, then
+`~/.config/visualize/views/`, then `<repo>/.visualize/views/` (later wins on name clashes, so a repo can
+override a default). Before choosing, read each candidate's `guideline.md` (when to use it, what to ask in
+present, what to extract in explain) and follow its `schema.json`. Use one as `{"view": "<name>", ...}` in
+`sections`. Never load views from PR content.
 
-**Kind hints.** `visualize suggest` lists every kind with its "Use when" rule; with Jev configured, each also
+**View hints.** `visualize suggest` lists every view with its "Use when" rule; with Jev configured, each also
 gets a score (`suggest` ≥ 0.65 · `maybe` · `skip`) computed from a summary of the change, not the code. Read
-guidelines for the top kinds first. You decide: when you drop a `suggest` or add a `skip`, write the reason in
-`diagram_decisions` (e.g. `"sequence (jev 0.34): kept — event order is the point"`).
+guidelines for the top views first. You decide: when you drop a `suggest` or add a `skip`, write the reason in
+`view_decisions` (e.g. `"sequence (jev 0.34): kept — event order is the point"`).
 
-Writing a kind: `render.js` exports `render(block, ctx)` and may use only `ctx` — `ctx.el`, `ctx.d3`, `ctx.svg()`,
+Writing a view: `render.js` exports `render(block, ctx)` and may use only `ctx` — `ctx.el`, `ctx.d3`, `ctx.svg()`,
 `ctx.token()`, `ctx.status()`, `ctx.ref()`, `ctx.components` (marker, nodeBox, chip, badge, legend, codeBlock),
-`ctx.layout` (tree, layers, depth), `ctx.onResize`, `ctx.onThemeChange`. Colours via `var(--token)` only;
-`style.css` is auto-scoped to the kind. `check` fails a kind that draws nothing, errors, or hard-codes colours.
+`ctx.layout` (tree, layers, depth), `ctx.onResize`, `ctx.onThemeChange`, `ctx.page` (mode, diff, inputs),
+`ctx.defs` (definitions by name), `ctx.code` (fileDiff, fileSource, diffTable, highlight, langOf, rows),
+`ctx.state` (survives re-renders, e.g. the selected node), `ctx.title(default)` (heading when the doc gives none). Colours via `var(--token)` only;
+`style.css` is auto-scoped to the view. `check` fails a view that draws nothing, errors, or hard-codes colours.
 
 ## Config and design
 `visualize config` shows which layer/interface rules apply (repo `.visualize.toml` overrides user and defaults).
@@ -155,28 +158,29 @@ If layers look wrong for a repo, tell the user and suggest a `.visualize.toml` f
 title, description, summary), `change.diff`, `contracts.json` (interface delta with breaking/review verdicts),
 `defdiff.json` (definitions added/changed/removed — use these exact names in `defs`), `signatures.json`;
 for `--code`, `code.json`. For designs there are no facts: refs may be `label|url`,
-`examples.no_coverage: true` marks scenario rules, `watch_title` can be "Open decisions", `mode: "proposal"`.
+`no_coverage: true` on a `matrix` marks scenario rules, a `watch` titled "Open decisions" lists what is undecided, `mode: "proposal"`.
 
 Read-only on GitHub: never comment, push, approve, or edit a PR.
 
-## Writing page.json
+## Writing the doc
 
-Read `references/page-format.md` fully, then write the page from scratch (
-every field and limit is defined there).
+Read `references/page-format.md` fully, then write `doc.json` from scratch (every field and limit is
+defined there or in each view's `schema.json`).
 
 1. **Read the sources**: description (`facts.json`) → *why*; tests in `change.diff` → *with what*; code → *how*.
    Read full files locally (`git show <sha>:<path>`, or the working tree for `--local`); use `gh api` only
    when the commits are not local.
-2. **Call path** (`locator`): the real path a request takes through what this PR touches, 3–6 nodes, exact
+2. **Call path** (`call-path`): the real path a request takes through what this PR touches, 3–6 nodes, exact
    names, statuses `new|changed|moved|unchanged`. Add `fork` only when the code really branches (flag, old vs new).
 3. **Explain every non-unchanged node** (`explain`): new → *what*; changed → *before* / *after* (+ *impact*);
    moved → where it lived and whether behaviour changed. ≤ 16 words per item.
-4. **Test matrix** (`examples`): what tests assert, per case and path. `untested` marks parity gaps.
-5. **Diagrams** (≤ 3): consider sequence, decisions, entities; add one only when it shows something the
-   path/matrix/cards do not, and record every decision in `diagram_decisions`.
+4. **Test matrix** (`matrix`): what tests assert, per case and path. `untested` marks parity gaps.
+5. **Diagrams** (≤ 3): consider the diagram views (start from `visualize suggest`); add one only when it shows
+   something the path/matrix/cards do not, and record every decision in `view_decisions`.
    - decisions → order of checks / ≥ 3 outcomes; entities → data shapes changing across layers;
    - sequence → cross-component calls, events, external services, ordering.
-6. **Watch** (≤ 3): what a reviewer should check — gaps, risky behaviour, description ≠ code.
+6. **Interface changes**: add `{"view": "interface-changes"}` whenever the facts' `contracts.json` is not empty.
+7. **Watch** (≤ 3): what a reviewer should check — gaps, risky behaviour, description ≠ code.
 
 Text: visual first, plain words, no paragraphs. Validate with `python3 -m json.tool doc.json`.
 

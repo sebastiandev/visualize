@@ -1,4 +1,4 @@
-"""Optional kind hints from Jev (TypeSafe): a scored shortlist of diagram kinds; the agent still decides.
+"""Optional view hints from Jev (TypeSafe): a scored shortlist of views; the agent still decides.
 
 Enabled when `[jev] enabled` is true, or "auto" (default) and a key is available: env TYPESAFE_API_KEY, else the
 macOS keychain item `typesafe-api-key`. Without a key nothing happens and the tool works as before.
@@ -13,7 +13,7 @@ import subprocess
 import sys
 import urllib.request
 
-from visualize.kinds import discover
+from visualize.views import discover
 
 URL = "https://api.typesafe.ai/v1/systemone"
 DEFAULT_MODEL = "jev-1.13.0"
@@ -54,7 +54,7 @@ def questions(mode: str) -> dict:
         rule = use_when(kind.read("guideline.md"))
         if rule:
             out[name] = {"type": "noul", "instructions":
-                         f"Would a '{name}' diagram help a reader understand this {mode}? It fits when:\n{rule}"}
+                         f"Would a '{name}' section help a reader understand this {mode}? It fits when:\n{rule}"}
     return out
 
 
@@ -63,7 +63,7 @@ def band(p: float) -> str:
 
 
 def hints(state: dict, cfg, mode: str) -> dict | None:
-    """Scored kinds for `state`, or None when Jev is disabled, has no key, or fails (reported on stderr)."""
+    """Scored views for `state`, or None when Jev is disabled, has no key, or fails (reported on stderr)."""
     enabled, model = settings(cfg)
     key = api_key() if enabled else None
     if not key:
@@ -81,12 +81,12 @@ def hints(state: dict, cfg, mode: str) -> dict | None:
     except Exception as error:  # hints are optional: never fail the run
         print(f"visualize: jev hints skipped ({type(error).__name__}: {str(error)[:120]})", file=sys.stderr)
         return None
-    kinds = sorted(({"kind": k, "p": round(a["noul"], 2), "band": band(a["noul"])} for k, a in answers.items()),
+    kinds = sorted(({"view": k, "p": round(a["noul"], 2), "band": band(a["noul"])} for k, a in answers.items()),
                    key=lambda h: -h["p"])
-    return {"model": model, "kinds": kinds,
+    return {"model": model, "views": kinds,
             "note": "Shortlist only. You decide; when you skip a 'suggest' or add a 'skip', give the reason in diagram_decisions."}
 
 
 def summary(h: dict | None) -> str | None:
     """`decisions 0.91 suggest · sequence 0.34 skip` for CLI output."""
-    return " · ".join(f"{k['kind']} {k['p']:.2f} {k['band']}" for k in h["kinds"]) if h else None
+    return " · ".join(f"{k['view']} {k['p']:.2f} {k['band']}" for k in h["views"]) if h else None

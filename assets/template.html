@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PR explain</title>
+<title>visualize</title>
 <script>document.documentElement.dataset.theme=localStorage.getItem('theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');</script>
 <style>
 :root{--paper:#FAF9F5;--card:#fff;--panel:#FDFCF9;--ink:#29261F;--muted:#6E6B62;--faint:#9A968B;--line:#E7E4DA;--soft:#F3F1EA;
@@ -24,22 +24,10 @@ h1,h2{font-family:Georgia,"Times New Roman",serif;font-weight:500;margin:0}h1{fo
 .seg[hidden]{display:none}.seg button[aria-pressed=true]{background:var(--soft);font-weight:650}button:focus-visible,summary:focus-visible,.node:focus-visible{outline:3px solid var(--clay);outline-offset:2px}
 .meta{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}.chip{font-size:12px;padding:3px 10px;border-radius:999px;background:var(--soft);color:var(--ink)}
 .chip.kind{background:var(--lav-soft);color:var(--lav)}.chip.flag{background:var(--amber-soft);color:var(--amber-ink);font-family:ui-monospace,monospace}
-.tldr{font-family:Georgia,serif;font-size:20px;margin:12px 0 4px;padding-left:16px;border-left:3px solid var(--clay)}
 .ref{font-size:11px;color:var(--muted);margin-left:6px;white-space:nowrap}.ref a{color:var(--muted)}
 section{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px 20px;margin-top:16px}
 .q{font-size:14px;color:var(--muted);margin:-6px 0 12px}
-/* Locator */
-.locator{display:grid;grid-template-columns:minmax(340px,32%) minmax(0,1fr);gap:20px;align-items:start}
-.locator>div:first-child{position:sticky;top:56px}
-.locator svg{width:100%;height:auto;display:block}
-.node rect{fill:var(--card);stroke-width:2}.node .lb{font:600 14px ui-sans-serif,system-ui;fill:var(--ink)}
-.node .ly{font:600 9.5px ui-sans-serif,system-ui;letter-spacing:1px;fill:var(--faint);text-transform:uppercase}
-.node .pth{font:10.5px ui-monospace,SFMono-Regular,Menlo,monospace;fill:var(--faint)}.node{cursor:pointer}.node:focus{outline:none}.node.sel rect{stroke-width:4}
-.link{fill:none;stroke:var(--line);stroke-width:2}
 .legend{display:flex;gap:14px;font-size:12px;color:var(--muted);margin-top:8px;flex-wrap:wrap}.sw{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-2px;border:2px solid}
-.detail{border:1px solid var(--line);border-radius:14px;padding:16px;background:var(--panel);min-height:220px;position:sticky;top:56px;max-height:calc(100vh - 72px);overflow:auto;overscroll-behavior:contain}
-.detail h3{margin:0;font-size:17px;overflow-wrap:anywhere}.detail .path{font:12px ui-monospace,monospace;color:var(--faint);overflow-wrap:anywhere;margin:2px 0 8px}.detail .what{color:var(--muted);font-size:14px;margin:0 0 12px}
-.sig h4{margin:0 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
 pre.code{margin:0 0 12px;padding:10px 12px;background:var(--gh-head);border:1px solid var(--gh-border);border-radius:6px;font:12px/18px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--gh-text);white-space:pre-wrap;overflow-wrap:anywhere}
 .kw{color:var(--gh-kw)}.ty{color:var(--gh-ty)}
 /* GitHub diff */
@@ -57,47 +45,25 @@ table.gh td.add{background:var(--gh-add)}table.gh td.num.add{background:var(--gh
 table.gh td.del{background:var(--gh-del)}table.gh td.num.del{background:var(--gh-del-num);color:var(--gh-text)}
 table.gh td.empty{background:var(--gh-empty)}.wadd{background:var(--gh-add-word);border-radius:2px}.wdel{background:var(--gh-del-word);border-radius:2px}
 .gh-note{padding:10px;margin:0;font-size:13px;color:var(--gh-hunk-text)}
-/* Test matrix */
-.coverage{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin:0 0 12px}.coverage b{color:var(--ink)}
-table.matrix{width:100%;border-collapse:separate;border-spacing:0;font-size:14px;border:1px solid var(--line);border-radius:12px;overflow:hidden}
-table.matrix th{background:var(--soft);font-size:12px;font-weight:650;color:var(--muted);text-align:left;padding:10px 14px;letter-spacing:.3px}
-table.matrix td{padding:10px 14px;border-top:1px solid var(--line);text-align:left;vertical-align:middle}
-table.matrix tbody tr:nth-child(even) td{background:color-mix(in srgb,var(--soft) 45%,transparent)}
-table.matrix td.case{font-weight:500}table.matrix td.t,table.matrix th.t{text-align:right;width:1%;white-space:nowrap}
-table.matrix tr.new td.case{box-shadow:inset 3px 0 0 var(--sage)}.tag{font-size:10px;font-weight:700;color:var(--sage);margin-left:8px;text-transform:uppercase;letter-spacing:.5px}
-.v{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:650;white-space:nowrap}
-.v.yes,.v.ok{background:var(--sage-soft);color:var(--sage-ink)}.v.no{background:var(--soft);color:var(--muted)}.v.err{background:var(--bad-soft);color:var(--bad)}
-.v.na{color:var(--faint);font-weight:400;padding-left:0}.v.untested{background:var(--amber-soft);color:var(--amber-ink);font-weight:500}.v.plain{background:var(--soft);color:var(--ink);font:500 11px ui-monospace,monospace}
-.foot{font-size:13px;color:var(--muted);margin-top:10px}
-/* Interface cards */
-details.gh.card>summary{font-family:ui-sans-serif,system-ui}details.gh.card>summary b{font:600 13px ui-monospace,monospace}
 .badge{font:700 10px ui-sans-serif,system-ui;padding:2px 7px;border-radius:6px;text-transform:uppercase;background:var(--sage-soft);color:var(--sage-ink)}.badge.chg{background:var(--amber-soft);color:var(--amber-ink)}.badge.brk{background:var(--bad-soft);color:var(--bad)}
-.surf{font:11px ui-sans-serif,system-ui;color:var(--gh-num)}.card .fp{font:11px ui-monospace,monospace;color:var(--gh-num)}
-.explain{margin:0 0 14px;display:grid;gap:10px}.explain h4{margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
-.explain ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}.explain li{font-size:14px;padding:6px 10px;border-radius:8px;background:var(--soft)}
-.explain .ba{display:grid;grid-template-columns:1fr 1fr;gap:8px}.explain .ba .b li{background:var(--gh-del)}.explain .ba .a li{background:var(--gh-add)}
-.explain .imp li{background:var(--amber-soft)}.explain .imp li:before{content:"↳ ";color:var(--amber-ink);font-weight:700}
-@media(max-width:820px){.explain .ba{grid-template-columns:1fr}}
 /* Diagrams */
-.dg svg{width:100%;height:auto;display:block}.dg text{font-family:ui-sans-serif,system-ui}
 .steps-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:4px 16px;margin:10px 0 0;padding:0;list-style:none;font-size:13px}
 .steps-list li{display:flex;gap:8px;align-items:baseline}.steps-list .n{flex:none;display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;font:700 10px ui-sans-serif;color:#fff}
 .why{font-size:12px;color:var(--muted);margin-top:10px}
 main section>h2.fold{cursor:pointer;display:flex;align-items:center;gap:8px;user-select:none;margin-bottom:12px}
 main section>h2.fold:before{content:'▸';display:inline-block;font-size:13px;color:var(--muted);transition:transform .15s;transform:rotate(90deg)}
 main section.collapsed>h2.fold{margin-bottom:0}main section.collapsed>h2.fold:before{transform:rotate(0)}
-main section.collapsed>:not(h2){display:none!important}main section>h2.fold:focus-visible{outline:3px solid var(--clay);outline-offset:4px;border-radius:6px}
-ul.watch{list-style:none;padding:0;margin:0;display:grid;gap:8px}ul.watch li{padding:10px 12px;border-radius:10px;background:var(--amber-soft);font-size:15px}
+main section.collapsed>:not(h2){display:none!important}section.bare{background:none;border:0;padding:0;margin-top:12px}main section>h2.fold:focus-visible{outline:3px solid var(--clay);outline-offset:4px;border-radius:6px}
 /*HLCSS*/
-/*KINDCSS*/
-@media(max-width:820px){.locator{grid-template-columns:1fr}.locator>div:first-child,.detail{position:static;max-height:none}h1{font-size:23px}table.matrix td,table.matrix th{padding:8px}}
+/*VIEWCSS*/
+@media(max-width:820px){h1{font-size:23px}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body><main id="app"></main>
 <script>/*D3*/</script>
 <script>/*HLJS*/</script>
-<script>/*KINDS*/</script>
+<script>/*VIEWS*/</script>
 <script id="page" type="application/json">/*PAGE*/</script>
 <script>
 'use strict';
@@ -180,25 +146,24 @@ function fileDiff(file,ranges,open=true){if(P.mode==='code')return fileSource(fi
 function codeRows(lines,lang){const hl=highlight(lines.map(l=>l.s),lang);return lines.map((l,i)=>`<tr><td class="num">${l.n}</td><td>${hl[i]}</td></tr>`).join('');}
 
 /* ---------- page ---------- */
-const L=P.locator,F=L.fork;
+/** A diff table for one file trimmed to head ranges, or '' when nothing changed there. */
+function diffTable(file,ranges){const lang=langOf(file);colourFile(file,lang);const hs=trim(P.diff[file]||[],ranges);
+ return hs.length?`<table class="gh">${cols()}<tbody>${hs.map(h=>hunkRows(h,lang)).join('')}</tbody></table>`:'';}
+const S=P.sections||[],_state=S.map(()=>({}));
 function render(){
-d3.select('#app').html(`<div class="top"><a href="${P.url}" target="_blank" rel="noopener" style="font-size:13px">${esc(P.source_label||('#'+P.number+' on GitHub'))}</a>
+d3.select('#app').html(`<div class="top">${P.url?`<a href="${P.url}" target="_blank" rel="noopener" style="font-size:13px">${esc(P.source_label||(P.number?'#'+P.number+' on GitHub':'source'))}</a>`:'<span></span>'}
  <div class="tools"><span class="seg" role="group" aria-label="Diff view" ${Object.keys(P.diff||{}).length?'':'hidden'}><button data-v="unified" aria-pressed="${view==='unified'}">Unified</button><button data-v="split" aria-pressed="${view==='split'}">Split</button></span>
  <span class="seg" role="group" aria-label="Sections"><button id="fold-all">Collapse all</button><button id="unfold-all">Expand all</button></span>
  <span class="seg"><button id="theme" aria-label="Toggle dark mode">${document.documentElement.dataset.theme==='dark'?'☀ Light':'☾ Dark'}</button></span></div></div>
- <h1>${esc(P.title)}</h1><div class="meta"><span class="chip kind">${esc(P.kind)}</span>${P.flag?`<span class="chip flag">⚑ ${esc(P.flag.name)} · ${esc(P.flag.scope)}</span>`:''}</div>
- <p class="tldr">${esc(P.tldr.text)}${ref(P.tldr.ref)}</p>
- <section aria-labelledby="h-loc"><h2 id="h-loc">${esc(L.title)}</h2><div class="locator"><div><svg id="loc" role="group" aria-label="Call path with the changed components"></svg>
-  <div class="legend"><span><i class="sw" style="border-color:var(--clay)"></i>changed</span><span><i class="sw" style="border-color:var(--sage)"></i>${P.mode==='code'?'focus':'new'}</span><span ${P.mode==='code'?'hidden':''}><i class="sw" style="border-color:var(--lav)"></i>moved</span><span><i class="sw" style="border-color:var(--stone);border-style:dashed"></i>unchanged</span><span>select a box →</span></div></div>
-  <div class="detail" id="detail" aria-live="polite"></div></div></section>
- ${(P.diagrams||[]).map((g,i)=>`<section class="dg" aria-labelledby="h-dg${i}"><h2 id="h-dg${i}">${esc(g.title)}</h2>${g.question?`<p class="q">${esc(g.question)}</p>`:''}<div id="dg${i}"></div></section>`).join('')}
- ${matrixHtml()}${cardsHtml()}
- ${P.watch&&P.watch.length?`<section aria-labelledby="h-w"><h2 id="h-w">${esc(P.watch_title||"Worth a reviewer's look")}</h2><ul class="watch">${P.watch.map(w=>`<li>${esc(w.text)}${ref(w.ref)}</li>`).join('')}</ul></section>`:''}`);
-d3.selectAll('.tools .seg button[data-v]').on('click',function(){view=this.dataset.v;localStorage.setItem('diffView',view);const keep=sel&&sel.id;render();if(keep)select(items.find(i=>i.id===keep));});
+ <h1>${esc(P.title)}</h1><div class="meta">${P.kind?`<span class="chip kind">${esc(P.kind)}</span>`:''}${P.flag?`<span class="chip flag">⚑ ${esc(P.flag.name)} · ${esc(P.flag.scope)}</span>`:''}</div>
+ ${S.map((b,i)=>`<section aria-labelledby="h-v${i}">${b.title?`<h2 id="h-v${i}">${esc(b.title)}</h2>`:''}${b.question?`<p class="q">${esc(b.question)}</p>`:''}<div class="view" id="v${i}" data-view="${esc(b.view)}"></div></section>`).join('')}`);
+d3.selectAll('.tools .seg button[data-v]').on('click',function(){view=this.dataset.v;localStorage.setItem('diffView',view);render();});
 d3.select('#theme').on('click',()=>{const t=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=t;localStorage.setItem('theme',t);d3.select('#theme').text(t==='dark'?'☀ Light':'☾ Dark');});
-makeFoldable();drawLocator();(P.diagrams||[]).forEach((g,i)=>{const el=document.getElementById('dg'+i);el.dataset.kind=g.type;const fn=KINDS[g.type];
- if(!fn){el.textContent=`Diagram error: unknown kind "${g.type}" (see \`visualize kinds\`)`;return;}
- try{fn(g,makeCtx(el,g.type,i));}catch(e){el.textContent='Diagram error: '+e.message;}});}
+S.forEach((b,i)=>{const el=document.getElementById('v'+i),fn=VIEWS[b.view];
+ if(!fn){el.textContent=`View error: unknown view "${b.view}" (see \`visualize views\`)`;return;}
+ try{fn(b,makeCtx(el,b.view,i));}catch(e){el.textContent='View error: '+e.message;}
+ if(!el.closest('section').querySelector(':scope>h2'))el.closest('section').classList.add('bare');});
+makeFoldable();}
 
 /** Every section header toggles its section; state persists per PR + section. */
 function makeFoldable(){const key=id=>`fold:${P.number}:${id}`;
@@ -210,13 +175,15 @@ function makeFoldable(){const key=id=>`fold:${P.number}:${id}`;
  d3.select('#fold-all').on('click',()=>document.querySelectorAll('main section').forEach(s=>s._fold&&s._fold(true)));
  d3.select('#unfold-all').on('click',()=>document.querySelectorAll('main section').forEach(s=>s._fold&&s._fold(false)));}
 const statusColour={new:'var(--sage)',changed:'var(--clay)',unchanged:'var(--stone)',removed:'var(--bad)',moved:'var(--lav)'};
-/* ---------- kinds: render API (ctx) shared by built-in and plugin diagrams ---------- */
-const KINDS=window.VISUALIZE_KINDS=window.VISUALIZE_KINDS||{};
+/* ---------- views: render API (ctx) shared by every view ---------- */
+const VIEWS=window.VISUALIZE_VIEWS=window.VISUALIZE_VIEWS||{};
 const _themeHooks=[];new MutationObserver(()=>_themeHooks.forEach(f=>f())).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
-/** The context handed to every kind's render(block, ctx). Kinds use only this — never page internals. */
+/** The context handed to every view's render(block, ctx). Views use only this — never page internals. */
 function makeCtx(el,kind,index){const uid=`k${index}-${kind.replace(/\W/g,'')}`;const css=getComputedStyle(document.documentElement);
  const statusLabel={new:'new',changed:'changed',removed:'removed',unchanged:'unchanged',moved:'moved'};
- const ctx={el,d3,uid,kind,
+ const ctx={el,d3,uid,kind,view:kind,page:P,defs:byName,state:_state[index],
+  title:t=>{const sec=el.closest('section');if(t&&!sec.querySelector(':scope>h2')){const h=document.createElement('h2');h.id='h-v'+index;h.textContent=t;sec.prepend(h);}},
+  code:{fileDiff,fileSource,diffTable,highlight,langOf,rows:codeRows},
   token:name=>css.getPropertyValue('--'+name).trim()||`var(--${name})`, /* current value; use var(--x) in markup to follow theme switches */
   status:s=>({color:statusColour[s]||statusColour.unchanged,label:statusLabel[s]||s}),
   ref, esc, href:svgHref,
@@ -247,70 +214,8 @@ function makeCtx(el,kind,index){const uid=`k${index}-${kind.replace(/\W/g,'')}`;
 function svgHref(r){const m=/^(?:(test|base):\s*)?((?:[\w.\-]+\/)+[\w.\-]+):(\d+)$/.exec((r||'').trim());return m?`https://github.com/__REPO__/blob/${m[1]==='base'?P.base_sha:P.head_sha}/${m[2]}#L${m[3]}`:null;}
 
 
-function matrixHtml(){const E=P.examples;if(!E)return'';const rs=E.rows,t=c=>(typeof c==='string'?c:c.text)!=='untested';
- const both=rs.filter(r=>r.cells.every(t)).length,some=rs.filter(r=>r.cells.some(t)&&!r.cells.every(t)).length;
- const cover=E.columns.length>1?`<span><b>${both}/${rs.length}</b> cases tested on every path</span><span><b>${some}</b> only on some paths</span><span><span class="v untested">untested</span> no test covers that path</span>`:`<span><b>${both}/${rs.length}</b> cases asserted by tests</span>`;
- const cell=c=>{const tx=typeof c==='string'?c:c.text,tone=typeof c==='string'?(/^yes/.test(c)?'yes':/^no$/.test(c)?'no':/error/.test(c)?'err':c==='untested'?'untested':c==='n/a'?'na':'plain'):c.tone;return `<td><span class="v ${tone}">${esc(tx)}</span></td>`;};
- return `<section aria-labelledby="h-ex"><h2 id="h-ex">${esc(E.title)}</h2><p class="q">${esc(E.question||'')}</p>${E.no_coverage?'':`<div class="coverage">${cover}</div>`}
- <table class="matrix"><thead><tr><th>${esc(E.case_header||'When…')}</th>${E.columns.map(c=>`<th>${esc(c)}</th>`).join('')}<th class="t">${P.mode==='proposal'?'Source':'Test'}</th></tr></thead><tbody>
- ${rs.map(r=>`<tr class="${r.new?'new':''}"><td class="case">${esc(r.case)}${r.new&&E.new_label?`<span class="tag">${esc(E.new_label)}</span>`:''}</td>${r.cells.map(cell).join('')}<td class="t">${ref(r.ref)}</td></tr>`).join('')}
- </tbody></table>${E.footnote?`<p class="foot">${esc(E.footnote.text)}${ref(E.footnote.ref)}</p>`:''}</section>`;}
 
-function cardsHtml(){const C=P.contract_cards||[];if(!C.length)return'';
- const body=c=>c.generated?`<p class="gh-note">${c.members} generated entries mirror the schema changes above.<br>${esc(c.file)}</p>`:c.change==='added'&&c.code?`<table class="gh"><colgroup><col style="width:44px"><col></colgroup><tbody>${codeRows(c.code,langOf(c.file))}</tbody></table>`
-  :(()=>{colourFile(c.file,langOf(c.file));const hs=trim(P.diff[c.file]||[],c.range?[c.range]:null);return hs.length?`<table class="gh">${cols()}<tbody>${hs.map(h=>hunkRows(h,langOf(c.file))).join('')}</tbody></table>`:'<p class="gh-note">Change detected but not visible in the diff hunks.</p>';})();
- const badge=c=>c.breaking===true?'<span class="badge brk">breaking</span>':c.breaking==='review'?'<span class="badge chg">review</span>':c.change==='added'?'<span class="badge">new</span>':'<span class="badge chg">changed</span>';
- return `<section aria-labelledby="h-c"><h2 id="h-c">${P.mode==='proposal'?'Proposed model':'Interface changes'}</h2><p class="q">${P.mode==='proposal'?'Proposed definitions (not code yet). New types show their definition; changed ones a diff against today.':'Detected from the code (base vs head). New types show their definition; changed ones their diff.'}</p>
- ${C.map((c,i)=>`<details class="gh card" ${i<4&&!c.generated?'open':''}><summary><span class="chev">▸</span>${badge(c)}<span class="surf">${esc(c.surface)}</span><b>${esc(c.name)}</b>${c.members&&c.change!=='added'?`<span class="surf">${c.members} member change(s)</span>`:''}<span class="fp" style="flex:1;text-align:right">${c.generated?'':esc(c.file)+(c.range?':'+c.range[0]:'')}</span>${c.ref?ref(c.ref):''}</summary>${body(c)}</details>`).join('')}</section>`;}
 
-/* ---------- locator ---------- */
-let items=[],sel=null;
-const colour={changed:'var(--clay)',new:'var(--sage)',unchanged:'var(--stone)',moved:'var(--lav)'};
-const fileOf=d=>(d.defs||[]).map(n=>byName[n]&&byName[n].file).find(Boolean)||(/^(?:test:\s*)?((?:[\w.\-]+\/)+[\w.\-]+):\d+$/.exec(d.ref||'')||[])[1]||null;
-function drawLocator(){
- const W=520,NW=440,FW=252,GAP=30,cx=W/2,LH=17,PH=13;
- const chars=(w,px)=>Math.max(8,Math.floor((w-24)/px));
- /** Wrap text into lines of ≤ n chars, breaking at spaces, dots, slashes and underscores; never truncates. */
- const wrap=(s,n)=>{const out=[];let rest=s||'';while(rest.length>n){let cut=-1;for(const c of [' ','.','/','_','→','(']){const i=rest.lastIndexOf(c,n);if(i>cut)cut=i;}
-   if(cut<n*0.4)cut=n;else cut+=1;out.push(rest.slice(0,cut).trimEnd());rest=rest.slice(cut).trimStart();}if(rest)out.push(rest);return out;};
- const lay=d=>{d.lbl=wrap(d.label,chars(d.w,7.6));d.pth=d.file?wrap(d.file,chars(d.w,6.3)):[];d.h=24+d.lbl.length*LH+(d.pth.length?6+d.pth.length*PH:0)+8;};
- items=L.nodes.map(n=>({...n,x:cx-NW/2,w:NW}));items.forEach(d=>{d.file=fileOf(d);lay(d);});
- let y=16;items.forEach(d=>{d.y=y;y+=d.h+GAP;});const last=items[items.length-1];let H=last.y+last.h+20;
- const links=items.slice(0,-1).map((n,i)=>[n,items[i+1]]);
- if(F){const fy=last.y+last.h+GAP+12;const off={...F.off,id:'off',layer:F.off.layer||'flag off',x:cx-FW-4,y:fy,w:FW},on={...F.on,id:'on',layer:F.on.layer||'flag on',x:cx+4,y:fy,w:FW};
-  [off,on].forEach(d=>{d.file=fileOf(d);lay(d);});const fh=Math.max(off.h,on.h);off.h=on.h=fh;items.push(off,on);links.push([last,off],[last,on]);H=fy+fh+20;}
- const svg=d3.select('#loc').attr('viewBox',`0 0 ${W} ${H}`);svg.selectAll('*').remove();
- svg.selectAll('path').data(links).join('path').attr('class','link').attr('d',([a,b])=>`M${a.x+a.w/2},${a.y+a.h} C${a.x+a.w/2},${a.y+a.h+GAP/2} ${b.x+b.w/2},${b.y-GAP/2} ${b.x+b.w/2},${b.y}`);
- const g=svg.selectAll('g.node').data(items).join('g').attr('class','node').attr('tabindex',0).attr('role','button')
-  .attr('aria-label',d=>`${d.layer}: ${d.label}, ${d.status}${d.file?', '+d.file:''}`).attr('transform',d=>`translate(${d.x},${d.y})`);
- g.append('rect').attr('width',d=>d.w).attr('height',d=>d.h).attr('rx',10).attr('stroke',d=>colour[d.status]).attr('stroke-dasharray',d=>d.status==='unchanged'?'5 4':null);
- g.append('text').attr('class','ly').attr('x',12).attr('y',16).text(d=>`${d.layer} · ${P.mode==='code'&&d.status==='new'?'focus':P.mode==='code'&&d.status==='unchanged'?'context':d.status}`);
- g.each(function(d){const t=d3.select(this);
-  const lb=t.append('text').attr('class','lb');d.lbl.forEach((l,i)=>lb.append('tspan').attr('x',12).attr('y',36+i*LH).text(l));
-  if(d.pth.length){const pt=t.append('text').attr('class','pth');const y0=36+(d.lbl.length-1)*LH+6+PH+2;d.pth.forEach((l,i)=>pt.append('tspan').attr('x',12).attr('y',y0+i*PH).text(l));}});
- g.append('title').text(d=>d.file||'');
- g.on('click',(e,d)=>select(d)).on('keydown',(e,d)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();select(d);}});
- select(sel?items.find(i=>i.id===sel.id):items.find(n=>n.status!=='unchanged')||items[0]);}
-
-/** Signature only: GraphQL operation line, else the Python signature. */
-function signature(d){const inp=(d.defs||[]).map(n=>P.inputs&&P.inputs[n]).find(Boolean);if(!inp)return'';
- const text=inp.sdl?inp.sdl.split('\n')[0]:inp.signature;
- const hl=highlight(text.split('\n'),inp.sdl?'graphql':'python').join('\n');
- return `<div class="sig"><h4>${inp.sdl?'GraphQL operation':'Signature'}</h4><pre class="code">${hl}</pre></div>`;}
-/** Files the node touches, in order, each with its own head line ranges (definitions in that file, else the ref line). */
-function filesOf(d){const by=new Map();
- for(const e of (d.defs||[]).map(n=>byName[n]).filter(Boolean)){if(!by.has(e.file))by.set(e.file,[]);if(e.after&&e.after.end)by.get(e.file).push([e.after.line,e.after.end]);}
- const m=/^(?:test:\s*)?((?:[\w.\-]+\/)+[\w.\-]+):(\d+)$/.exec(d.ref||'');
- if(m){if(!by.has(m[1]))by.set(m[1],[]);if(!by.get(m[1]).length)by.get(m[1]).push([+m[2]-3,+m[2]+12]);}
- if(!by.size&&d.file)by.set(d.file,[]);return [...by.entries()];}
-/** Behaviour explanation: what it does (new), before → after (changed/moved), and impact. */
-function explainHtml(d){const x=d.explain;if(!x)return'';const li=xs=>(xs||[]).map(i=>`<li>${esc(i.text)}${ref(i.ref)}</li>`).join('');let h='';
- if(x.what&&x.what.length)h+=`<div><h4>What it does</h4><ul>${li(x.what)}</ul></div>`;
- if((x.before&&x.before.length)||(x.after&&x.after.length))h+=`<div class="ba"><div class="b"><h4>${d.status==='moved'?'Before (where it lived)':'Before'}</h4><ul>${li(x.before)}</ul></div><div class="a"><h4>After</h4><ul>${li(x.after)}</ul></div></div>`;
- if(x.impact&&x.impact.length)h+=`<div class="imp"><h4>${P.mode==='code'?'Side effects':'Impact'}</h4><ul>${li(x.impact)}</ul></div>`;
- return h?`<div class="explain">${h}</div>`:'';}
-function select(d){if(!d)return;sel=d;d3.selectAll('#loc g.node').classed('sel',x=>x===d);
- d3.select('#detail').html(`<h3>${esc(d.label)}</h3>${d.file?`<div class="path">${esc(d.file)}</div>`:''}<p class="what">${esc(d.summary||(P.mode==='code'?'':'Unchanged by this PR'))}${ref(d.ref)}</p>${explainHtml(d)}${signature(d)}${(()=>{const fs=filesOf(d);return fs.length?fs.map(([f,rs],i)=>fileDiff(f,rs,i<2)).join(''):(P.mode==='proposal'||P.mode==='code'?'':'<p class="what">Not part of this PR’s diff.</p>');})()}`);}
 render();
 </script>
 </body></html>

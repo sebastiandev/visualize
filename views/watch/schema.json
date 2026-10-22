@@ -1,0 +1,15 @@
+{
+  "required": [
+    "view",
+    "items"
+  ],
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "items": {
+      "type": "array",
+      "description": "[{text, ref}]"
+    }
+  }
+}

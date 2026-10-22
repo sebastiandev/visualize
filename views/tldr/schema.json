@@ -1,0 +1,15 @@
+{
+  "required": [
+    "view",
+    "text"
+  ],
+  "properties": {
+    "text": {
+      "type": "string",
+      "description": "≤ 25 words"
+    },
+    "ref": {
+      "type": "string"
+    }
+  }
+}

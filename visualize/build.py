@@ -1,4 +1,4 @@
-"""Render the self-contained explain page: authored page.json + computed diff, definitions, contract cards + assets."""
+"""Render the self-contained page: authored doc + computed diff, definitions, contract cards + assets."""
 
 import ast
 import json
@@ -79,12 +79,11 @@ def _contract_cards(repo: str, head: str, entries: list[dict]) -> list[dict]:
     return out
 
 
-def _proposal_cards(page: dict) -> None:
-    """Turn authored `model_cards` (proposal mode) into interface cards: new → definition; changed → before/after diff."""
+def _authored_cards(cards: list[dict], diff: dict) -> list[dict]:
+    """Authored definitions → interface cards: new → definition; changed → before/after diff (added to `diff`)."""
     import difflib
-    page.setdefault("diff", {})
-    cards = []
-    for c in page.get("model_cards", []):
+    out = []
+    for c in cards:
         key = c.get("file") or f"proposal/{c['name']}.{c.get('ext', 'py')}"
         card = {"surface": c.get("surface", "model"), "name": c["name"], "file": key, "change": c.get("change", "added"),
                 "breaking": c.get("breaking", False), "members": 0, "ref": c.get("ref")}
@@ -93,29 +92,51 @@ def _proposal_cards(page: dict) -> None:
         else:
             before, after = c["before"].splitlines(), c["after"].splitlines()
             text = "\n".join(["diff --git a/x b/" + key] + list(difflib.unified_diff(before, after, "a/x", "b/x", n=max(len(before), len(after)), lineterm="")))
-            page["diff"][key] = parse(text).get(key, [])
-            card["members"] = sum(1 for h in page["diff"][key] for l in h["lines"] if l["t"] != " ")
-        cards.append(card)
-    if cards:
-        page["contract_cards"] = cards
+            diff[key] = parse(text).get(key, [])
+            card["members"] = sum(1 for h in diff[key] for l in h["lines"] if l["t"] != " ")
+        out.append(card)
+    return out
+
+
+def sections_of(page: dict) -> list[dict]:
+    """The doc's ordered sections; an old-shape page (tldr/locator/diagrams/examples/cards/watch) is converted."""
+    if "sections" in page:
+        return page["sections"]
+    out = []
+    if page.get("tldr"):
+        out.append({"view": "tldr", **page["tldr"]})
+    if page.get("locator"):
+        out.append({"view": "call-path", **page["locator"]})
+    out += [{**{k: v for k, v in d.items() if k != "type"}, "view": d["type"]} for d in page.get("diagrams", [])]
+    if page.get("examples"):
+        out.append({"view": "matrix", **page["examples"]})
+    if page.get("model_cards"):
+        out.append({"view": "interface-changes", "cards": page["model_cards"]})
+    elif page.get("show_contract", True) and page.get("contract_cards"):
+        out.append({"view": "interface-changes"})
+    if page.get("watch"):
+        out.append({"view": "watch", "items": page["watch"], **({"title": page["watch_title"]} if page.get("watch_title") else {})})
+    return out
 
 
 def render(page: dict, repo: str = "") -> str:
     """Self-contained HTML for a page dict (PR explain page or proposal page)."""
-    if page.get("model_cards"):
-        _proposal_cards(page)
     for key, empty in (("diff", {}), ("defdiff", []), ("inputs", {}), ("contract_cards", [])):
         page.setdefault(key, empty)
+    page["sections"] = sections_of(page)
+    for sec in page["sections"]:
+        if sec.get("view") == "interface-changes" and sec.get("cards"):
+            sec["cards_built"] = _authored_cards(sec["cards"], page["diff"])
     hl_js = "".join((VENDOR / f).read_text() + ";\n" for f in ("highlight-11.10.0.min.js", "graphql-11.10.0.min.js", "dockerfile-11.10.0.min.js"))
     hl_css = _scoped_theme((VENDOR / "github.min.css").read_text(), "light") + "\n" + _scoped_theme((VENDOR / "github-dark.min.css").read_text(), "dark")
     html = (ASSETS / "template.html").read_text()
     html = html.replace("/*D3*/", (VENDOR / "d3.v7.9.0.min.js").read_text()).replace("/*HLJS*/", hl_js).replace("/*HLCSS*/", hl_css)
     html = html.replace("https://github.com/__REPO__/", f"https://github.com/{repo}/" if repo else "#")
-    from visualize.kinds import bundle
-    kinds_js, kinds_css, kind_errors = bundle(page.get("diagrams", []))
-    for err in kind_errors:
+    from visualize.views import bundle
+    views_js, views_css, view_errors = bundle(page["sections"])
+    for err in view_errors:
         print("visualize:", err)
-    html = html.replace("/*KINDS*/", kinds_js).replace("/*KINDCSS*/", kinds_css)
+    html = html.replace("/*VIEWS*/", views_js).replace("/*VIEWCSS*/", views_css)
     from visualize.config import load
     from visualize.design import overrides_css
     css, unknown = overrides_css(load().data.get("design", {}))

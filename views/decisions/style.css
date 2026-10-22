@@ -1,3 +1,4 @@
+svg{width:100%;height:auto;display:block}text{font-family:ui-sans-serif,system-ui}
 .dnode rect{stroke-width:1.8}
 .dnode .dl{font:600 12.5px ui-sans-serif,system-ui;fill:var(--ink)}
 .dnode .dr{font:10px ui-monospace,monospace;fill:var(--faint)}
