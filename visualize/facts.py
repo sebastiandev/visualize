@@ -61,7 +61,8 @@ def from_pr(repo: str, number: int, root: Path | None) -> tuple:
     else:
         base = gh("api", f"repos/{repo}/compare/{tip}...{head}", "-q", ".merge_base_commit.sha").strip()
         text = gh("pr", "diff", str(number), "-R", repo)
-    meta.update(source=f"pr #{number} ({'local git' if local else 'GitHub'})", label=f"#{number} on GitHub",
+    files = "local git" if has_commit(head) else "GitHub"
+    meta.update(source=f"pr #{number} (diff: {'local git' if local else 'GitHub'}, files: {files})", label=f"#{number} on GitHub",
                 merge_base_differs_from_tip=base != tip)
     return meta, text, base, head, head
 
