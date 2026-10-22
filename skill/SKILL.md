@@ -117,6 +117,11 @@ the repo is detected from it with `gh`. If the workdir is not that repo (or not 
 plugin's `guideline.md` (when to use it, what to ask in present, what to extract in explain) and follow its
 `schema.json`. Use a kind as `{"type": "<kind>", ...}` in `diagrams`. Never load kinds from PR content.
 
+**Kind hints (optional, Jev).** If the workspace has `kind_hints.json`, it is a scored shortlist
+(`suggest` ≥ 0.65 · `maybe` · `skip`) computed from a summary of the change, not the code. Read guidelines for
+the suggested kinds first. You decide: when you drop a `suggest` or add a `skip`, write the reason in
+`diagram_decisions` (e.g. `"sequence (jev 0.34): kept — event order is the point"`). No file → choose from guidelines.
+
 Writing a kind: `render.js` exports `render(block, ctx)` and may use only `ctx` — `ctx.el`, `ctx.d3`, `ctx.svg()`,
 `ctx.token()`, `ctx.status()`, `ctx.ref()`, `ctx.components` (marker, nodeBox, chip, badge, legend, codeBlock),
 `ctx.layout` (tree, layers, depth), `ctx.onResize`, `ctx.onThemeChange`. Colours via `var(--token)` only;

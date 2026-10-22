@@ -168,6 +168,22 @@ fallback = ""      # only used outside a git repo, and announced
 
 A repo-specific `.visualize.toml` you don't want to commit can be ignored locally via `.git/info/exclude`.
 
+### Jev kind hints (optional)
+
+With a [TypeSafe](https://typesafe.ai) key, `explain` also asks Jev which diagram kinds fit the change and writes
+`kind_hints.json` (e.g. `decisions 0.89 suggest · sequence 0.34 skip`). The agent reads it as a shortlist and
+still decides, giving a reason when it disagrees. Only a summary is sent (title, description, file paths,
+layers, counts), never file contents. Each kind's `## Use when` section becomes the question.
+
+- Key: `TYPESAFE_API_KEY`, or the macOS keychain item `typesafe-api-key`.
+- No key → no hints; everything else works the same.
+
+```toml
+[jev]
+enabled = "auto"        # auto (on when a key is found) | true | false
+model   = "jev-1.13.0"
+```
+
 ## Design tokens
 
 Pages use CSS custom properties (light and dark). `visualize design` lists them; override in either config:

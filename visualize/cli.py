@@ -50,7 +50,18 @@ def gather_facts(ws: Workspace) -> dict:
     defs = defdiff(ws.repo, code, base, head)
     ws.write_json("defdiff.json", defs)
     ws.write_json("signatures.json", signatures(ws.repo, defs, head, set(paths), cfg.introspection))
-    return {"title": meta["title"], "files": len(paths), "definitions": len(defs), "contract_entries": len(contracts),
+    from collections import Counter
+    from visualize import jev
+    kind_hints = jev.hints({
+        "pull_request": {"title": meta["title"], "description": (meta.get("body") or "")[:2000]},
+        "facts": {"layers": dict(Counter(cfg.layer(p) for p in paths)), "files": len(paths),
+                  "additions": meta["additions"], "deletions": meta["deletions"],
+                  "interface_changes": len(contracts), "breaking": sum(e["breaking"] is True for e in contracts),
+                  "changed_definitions": [f'{d["change"]} {d["name"]}' for d in defs][:40]},
+        "file_paths": paths}, cfg, "pull request")
+    if kind_hints:
+        ws.write_json("kind_hints.json", kind_hints)
+    return {"kind_hints": jev.summary(kind_hints), "title": meta["title"], "files": len(paths), "definitions": len(defs), "contract_entries": len(contracts),
             "breaking": sum(e["breaking"] is True for e in contracts), "merge_base_differs_from_tip": base != meta["baseRefOid"], "config": cfg.sources}
 
 
@@ -66,7 +77,7 @@ def explain(pr: int, repo: str, refresh: bool, out: Path | None) -> int:
     """Reader mode for a PR: gather facts on first run (or --refresh); render + check once page.json exists."""
     ws = Workspace(repo, pr)
     if refresh or not ws.path("refs.json").exists():
-        print(json.dumps(gather_facts(ws), indent=1))
+        print(json.dumps(gather_facts(ws), indent=1, ensure_ascii=False))
     if not ws.path("page.json").exists():
         print(f"workspace: {ws.dir}\nnext: write page.json there (visualize skill), then run `visualize explain {pr}` again")
         return 0
@@ -141,7 +152,13 @@ def explain_code(target: str, repo: str | None, out: Path | None) -> int:
         cfg = load_config()
         facts = gather(root, target, cfg)
         facts_path.write_text(json.dumps(facts, indent=1))
-        print(json.dumps({"target": target, "files": facts["files"], "definitions": len(facts["definitions"]),
+        from visualize import jev
+        kind_hints = jev.hints({"code": {"target": target, "definitions": [d["name"] for d in facts["definitions"]][:60],
+                                         "layers": facts["layers"], "callers": len(facts["callers"]), "tests": len(facts["tests"])},
+                                "file_paths": facts["files"]}, cfg, "part of the code")
+        if kind_hints:
+            (work / "kind_hints.json").write_text(json.dumps(kind_hints, indent=1))
+        print(json.dumps({"kind_hints": jev.summary(kind_hints), "target": target, "files": facts["files"], "definitions": len(facts["definitions"]),
                           "callers": len(facts["callers"]), "tests": len(facts["tests"]), "config": cfg.sources}, indent=1))
     page_json = work / "page.json"
     if not page_json.exists():
