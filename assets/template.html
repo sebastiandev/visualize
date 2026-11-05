@@ -5,28 +5,42 @@
 <title>visualize</title>
 <script>const storage=(()=>{try{const s=window.localStorage;s.getItem('theme');return s}catch{const m=new Map();return{getItem:k=>m.get(k)??null,setItem:(k,v)=>m.set(k,String(v)),clear:()=>m.clear()}}})();document.documentElement.dataset.theme=storage.getItem('theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');</script>
 <style>
-:root{--paper:#FAF9F5;--card:#fff;--panel:#FDFCF9;--ink:#29261F;--muted:#6E6B62;--faint:#9A968B;--line:#E7E4DA;--soft:#F3F1EA;
+:root{--paper:#FAF9F5;--card:#fff;--panel:#FDFCF9;--ink:#29261F;--muted:#6E6B62;--faint:#9A968B;--line:#E7E4DA;--soft:#F3F1EA;--scroll-thumb:#CFCBBE;--rail:190px;--ease:cubic-bezier(.2,.7,.2,1);
  --clay:#C96442;--clay-soft:#F5E6DE;--sage:#5E8C7A;--sage-ink:#2F5A3B;--sage-soft:#E9F0E6;--amber-ink:#8A5D16;--amber-soft:#FBF1E4;--bad:#A0452A;--bad-soft:#F6E3DC;--stone:#8A8578;--lav:#7B6CB5;--lav-soft:#EEEAF6;
  --gh-bg:#ffffff;--gh-head:#f6f8fa;--gh-border:#d0d7de;--gh-text:#1f2328;--gh-num:#6e7781;--gh-link:#0969da;
  --gh-add:#e6ffec;--gh-add-num:#ccffd8;--gh-add-word:#abf2bc;--gh-del:#ffebe9;--gh-del-num:#ffd7d5;--gh-del-word:rgba(255,129,130,.4);
  --gh-hunk:#ddf4ff;--gh-hunk-num:#b6e3ff;--gh-hunk-text:#57606a;--gh-empty:#f6f8fa;--gh-kw:#cf222e;--gh-ty:#8250df}
-[data-theme=dark]{--paper:#1C1B18;--card:#24231F;--panel:#2A2925;--ink:#ECE9E1;--muted:#ABA69A;--faint:#7E7A70;--line:#3A3832;--soft:#302E29;
+[data-theme=dark]{--paper:#1C1B18;--card:#24231F;--panel:#2A2925;--ink:#ECE9E1;--muted:#ABA69A;--faint:#7E7A70;--line:#3A3832;--soft:#302E29;--scroll-thumb:#4A4740;
  --clay:#E0866A;--clay-soft:#45302A;--sage:#86B5A2;--sage-ink:#A9D4C2;--sage-soft:#263A32;--amber-ink:#E7C17E;--amber-soft:#3D3322;--bad:#F09A84;--bad-soft:#47302A;--stone:#8F8A7E;--lav:#A99BE0;--lav-soft:#322D45;
  --gh-bg:#0d1117;--gh-head:#161b22;--gh-border:#30363d;--gh-text:#e6edf3;--gh-num:#6e7681;--gh-link:#4493f8;
  --gh-add:rgba(46,160,67,.15);--gh-add-num:rgba(63,185,80,.3);--gh-add-word:rgba(46,160,67,.4);--gh-del:rgba(248,81,73,.1);--gh-del-num:rgba(248,81,73,.3);--gh-del-word:rgba(248,81,73,.4);
  --gh-hunk:rgba(56,139,253,.1);--gh-hunk-num:rgba(56,139,253,.4);--gh-hunk-text:#7d8590;--gh-empty:#161b22;--gh-kw:#ff7b72;--gh-ty:#d2a8ff}
 *{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.55 ui-sans-serif,system-ui,sans-serif}
-main{max-width:1800px;margin:auto;padding:16px clamp(14px,2vw,32px) 48px}a{color:var(--clay)}
-h1,h2{font-family:Georgia,"Times New Roman",serif;font-weight:500;margin:0}h1{font-size:28px;line-height:1.25}h2{font-size:21px;margin-bottom:12px}
-.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
-.tools{display:flex;gap:8px;align-items:center;position:sticky;top:8px;z-index:5}
-.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--card)}.seg button{font:12px ui-sans-serif,system-ui;padding:5px 10px;border:0;background:transparent;color:var(--ink);cursor:pointer}
-.seg[hidden]{display:none}.seg button[aria-pressed=true]{background:var(--soft);font-weight:650}button:focus-visible,summary:focus-visible,.node:focus-visible{outline:3px solid var(--clay);outline-offset:2px}
-.meta{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}.chip{font-size:12px;padding:3px 10px;border-radius:999px;background:var(--soft);color:var(--ink)}
+main{max-width:1800px;margin:auto;padding:24px clamp(18px,3vw,56px) 96px}a{color:var(--clay)}
+h1,h2{font-family:Georgia,"Times New Roman",serif;font-weight:500;margin:0}h1{font-size:clamp(28px,3vw,42px);line-height:1.2;letter-spacing:-.015em}h2{font-size:21px;margin-bottom:12px}
+/* Scrollbars follow the theme; color-scheme also fixes the overscroll gutter and UA controls. */
+:root{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+::-webkit-scrollbar{width:11px;height:11px;background:transparent}::-webkit-scrollbar-track,::-webkit-scrollbar-corner{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--scroll-thumb);border-radius:999px;border:3px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-thumb:hover{background:var(--faint);background-clip:content-box}
+@supports (-moz-appearance:none){html,.sec-body *{scrollbar-width:thin;scrollbar-color:var(--scroll-thumb) transparent}}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding-left:calc(var(--rail) + 32px)}
+.tools{display:flex;gap:2px;align-items:center;position:sticky;top:8px;z-index:5}
+.seg{display:inline-flex;border:0;background:none;gap:2px}.seg button{font:12px ui-sans-serif,system-ui;padding:5px 11px;border:0;border-radius:999px;background:transparent;color:var(--muted);cursor:pointer;transition:color .2s,background .2s}
+.seg button:hover{color:var(--ink)}
+.seg[hidden]{display:none}.seg button[aria-pressed=true]{color:var(--ink);font-weight:650;border-radius:0;box-shadow:inset 0 -1.5px 0 var(--clay)}button:focus-visible,summary:focus-visible,.node:focus-visible{outline:3px solid var(--clay);outline-offset:2px}
+.meta{display:flex;flex-wrap:wrap;gap:18px;margin:14px 0 0;padding-left:calc(var(--rail) + 32px)}
+h1{padding-left:calc(var(--rail) + 32px)}
+.chip{font-size:12px;padding:3px 10px;border-radius:999px;background:var(--soft);color:var(--ink)}
+.meta .chip{background:none;padding:0;border-radius:0;color:var(--faint);font:500 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.14em;text-transform:uppercase}
 .chip.kind{background:var(--lav-soft);color:var(--lav)}.chip.flag{background:var(--amber-soft);color:var(--amber-ink);font-family:ui-monospace,monospace}
 .ref{font-size:11px;color:var(--muted);margin-left:6px;white-space:nowrap}.ref a{color:var(--muted)}
-section{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px 20px;margin-top:16px}
-.q{font-size:14px;color:var(--muted);margin:-6px 0 12px}
+/* Sections are not cards: a margin rail holds the heading, the body flows beside it. */
+section{background:none;border:0;border-radius:0;padding:0;margin-top:64px;display:grid;grid-template-columns:var(--rail) minmax(0,1fr);gap:0 32px;align-items:start}
+main section:first-of-type{margin-top:34px}
+section>.sec-body{grid-column:2;min-width:0}
+.q{grid-column:2;font-size:14px;color:var(--muted);margin:0 0 14px}
+/* A section with no heading keeps the rail as an empty column, so its body still lines up with the title. */
 .legend{display:flex;gap:14px;font-size:12px;color:var(--muted);margin-top:8px;flex-wrap:wrap}.sw{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-2px;border:2px solid}
 pre.code{margin:0 0 12px;padding:10px 12px;background:var(--gh-head);border:1px solid var(--gh-border);border-radius:6px;font:12px/18px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--gh-text);white-space:pre-wrap;overflow-wrap:anywhere}
 .kw{color:var(--gh-kw)}.ty{color:var(--gh-ty)}
@@ -50,10 +64,24 @@ table.gh td.empty{background:var(--gh-empty)}.wadd{background:var(--gh-add-word)
 .steps-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:4px 16px;margin:10px 0 0;padding:0;list-style:none;font-size:13px}
 .steps-list li{display:flex;gap:8px;align-items:baseline}.steps-list .n{flex:none;display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;font:700 10px ui-sans-serif;color:#fff}
 .why{font-size:12px;color:var(--muted);margin-top:10px}
-main section>h2.fold{cursor:pointer;display:flex;align-items:center;gap:8px;user-select:none;margin-bottom:12px}
-main section>h2.fold:before{content:'▸';display:inline-block;font-size:13px;color:var(--muted);transition:transform .15s;transform:rotate(90deg)}
-main section.collapsed>h2.fold{margin-bottom:0}main section.collapsed>h2.fold:before{transform:rotate(0)}
-main section.collapsed>:not(h2){display:none!important}section.bare{background:none;border:0;padding:0;margin-top:12px}main section>h2.fold:focus-visible{outline:3px solid var(--clay);outline-offset:4px;border-radius:6px}
+/* Shared fade for content a view reveals; views cannot declare @keyframes (their CSS is selector-scoped). */
+@keyframes vz-fade{from{opacity:0}to{opacity:1}}
+main section>h2.fold{grid-column:1;position:sticky;top:16px;cursor:pointer;user-select:none;margin:4px 0 0;padding-right:20px;
+ font-size:19px;line-height:1.3;color:var(--muted);text-align:right;transition:color .2s}
+main section>h2.fold:hover{color:var(--ink)}
+main section>h2.fold:before{content:'';position:absolute;right:2px;top:.62em;width:7px;height:7px;border-right:1.5px solid var(--line);border-bottom:1.5px solid var(--line);
+ transform:translateY(-50%) rotate(45deg);transition:transform .35s var(--ease),border-color .2s}
+main section.collapsed>h2.fold:before{transform:translateY(-50%) rotate(-45deg)}
+main section>h2.fold:hover:before{border-color:var(--clay)}
+main section>h2.fold:focus-visible{outline:3px solid var(--clay);outline-offset:4px;border-radius:6px}
+/* Folding glides: the height is driven by makeFoldable, overflow is clipped only while it moves. */
+section>.sec-body{transition:height .42s var(--ease),opacity .3s ease}
+section>.sec-body.anim{overflow:hidden}
+section.collapsed>.sec-body{opacity:0}
+section>.sec-body[hidden]{display:none}
+@media(max-width:1100px){section{grid-template-columns:minmax(0,1fr)}section>.sec-body,.q{grid-column:auto}
+ main section>h2.fold{position:static;text-align:left;padding:0 0 0 20px}main section>h2.fold:before{right:auto;left:2px}
+ .top,h1,.meta{padding-left:0}}
 /*HLCSS*/
 /*VIEWCSS*/
 @media(max-width:820px){h1{font-size:23px}}
@@ -154,7 +182,7 @@ d3.select('#app').html(`<div class="top">${P.url?`<a href="${P.url}" target="_bl
  <span class="seg" role="group" aria-label="Sections"><button id="fold-all">Collapse all</button><button id="unfold-all">Expand all</button></span>
  <span class="seg"><button id="theme" aria-label="Toggle dark mode">${document.documentElement.dataset.theme==='dark'?'☀ Light':'☾ Dark'}</button></span></div></div>
  <h1>${esc(P.title)}</h1><div class="meta">${P.kind?`<span class="chip kind">${esc(P.kind)}</span>`:''}${P.flag?`<span class="chip flag">⚑ ${esc(P.flag.name)} · ${esc(P.flag.scope)}</span>`:''}</div>
- ${S.map((b,i)=>`<section aria-labelledby="h-v${i}">${b.title?`<h2 id="h-v${i}">${esc(b.title)}</h2>`:''}${b.question?`<p class="q">${esc(b.question)}</p>`:''}<div class="view" id="v${i}" data-view="${esc(b.view)}"></div></section>`).join('')}`);
+ ${S.map((b,i)=>`<section aria-labelledby="h-v${i}">${b.title?`<h2 id="h-v${i}">${esc(b.title)}</h2>`:''}<div class="sec-body">${b.question?`<p class="q">${esc(b.question)}</p>`:''}<div class="view" id="v${i}" data-view="${esc(b.view)}"></div></div></section>`).join('')}`);
 d3.selectAll('.tools .seg button[data-v]').on('click',function(){view=this.dataset.v;storage.setItem('diffView',view);render();});
 d3.select('#theme').on('click',()=>{const t=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=t;storage.setItem('theme',t);d3.select('#theme').text(t==='dark'?'☀ Light':'☾ Dark');});
 S.forEach((b,i)=>{const el=document.getElementById('v'+i),fn=VIEWS[b.view];
@@ -163,13 +191,19 @@ S.forEach((b,i)=>{const el=document.getElementById('v'+i),fn=VIEWS[b.view];
  if(!el.closest('section').querySelector(':scope>h2'))el.closest('section').classList.add('bare');});
 makeFoldable();}
 
-/** Every section header toggles its section; state persists per PR + section. */
-function makeFoldable(){const key=id=>`fold:${P.number}:${id}`;
- document.querySelectorAll('main section').forEach(sec=>{const h=sec.querySelector(':scope>h2');if(!h)return;const id=h.id||h.textContent;
-  const set=c=>{sec.classList.toggle('collapsed',c);h.setAttribute('aria-expanded',String(!c));storage.setItem(key(id),c?'1':'0');if(!c)window.dispatchEvent(new Event('resize'));};
-  h.classList.add('fold');h.tabIndex=0;h.setAttribute('role','button');set(storage.getItem(key(id))==='1');
-  h.addEventListener('click',()=>set(!sec.classList.contains('collapsed')));h.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();set(!sec.classList.contains('collapsed'));}});
-  sec._fold=set;});
+/** Every section header toggles its section; state persists per PR + section. Toggling glides the body's height. */
+function makeFoldable(){const key=id=>`fold:${P.number}:${id}`,GLIDE=420,reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+ document.querySelectorAll('main section').forEach(sec=>{const h=sec.querySelector(':scope>h2'),body=sec.querySelector(':scope>.sec-body');if(!h||!body)return;const id=h.id||h.textContent;
+  /** Animate from the current height to 0 (or back to the content height), then hand height back to the content. */
+  const glide=c=>{body.style.height=body.getBoundingClientRect().height+'px';body.hidden=false;body.classList.add('anim');
+   requestAnimationFrame(()=>{body.style.height=(c?0:body.scrollHeight)+'px';});
+   clearTimeout(body._t);body._t=setTimeout(()=>{body.classList.remove('anim');body.style.height='';body.hidden=c;if(!c)window.dispatchEvent(new Event('resize'));},GLIDE);};
+  const set=(c,animate)=>{sec.classList.toggle('collapsed',c);h.setAttribute('aria-expanded',String(!c));storage.setItem(key(id),c?'1':'0');
+   if(animate&&!reduced)glide(c);else{body.hidden=c;if(!c)window.dispatchEvent(new Event('resize'));}};
+  h.classList.add('fold');h.tabIndex=0;h.setAttribute('role','button');set(storage.getItem(key(id))==='1',false);
+  const toggle=()=>set(!sec.classList.contains('collapsed'),true);
+  h.addEventListener('click',toggle);h.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}});
+  sec._fold=c=>set(c,true);});
  d3.select('#fold-all').on('click',()=>document.querySelectorAll('main section').forEach(s=>s._fold&&s._fold(true)));
  d3.select('#unfold-all').on('click',()=>document.querySelectorAll('main section').forEach(s=>s._fold&&s._fold(false)));}
 const statusColour={new:'var(--sage)',changed:'var(--clay)',unchanged:'var(--stone)',removed:'var(--bad)',moved:'var(--lav)'};
