@@ -147,7 +147,7 @@ def render(page: dict, repo: str = "") -> str:
     return html.replace("/*PAGE*/", json.dumps(page).replace("</", "<\\/"))
 
 
-def from_facts(page: dict, facts_dir: Path) -> str:
+def merge_facts_into_page(page: dict, facts_dir: Path) -> str:
     """Merge a facts folder into the page (diffs, definitions, signatures, interface cards); returns the repo."""
     facts = json.loads((facts_dir / "facts.json").read_text())
     repo = facts["repo"]

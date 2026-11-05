@@ -17,6 +17,7 @@ from pathlib import Path
 from visualize.config import repo_root
 
 TOOL = Path(__file__).resolve().parent.parent
+TRUSTED_ONLY = False
 
 
 @dataclass
@@ -41,7 +42,7 @@ class View:
 
 def search_dirs() -> list[Path]:
     root = repo_root()
-    return [TOOL / "views", Path.home() / ".config" / "visualize" / "views"] + ([root / ".visualize" / "views"] if root else [])
+    return [TOOL / "views", Path.home() / ".config" / "visualize" / "views"] + ([root / ".visualize" / "views"] if root and not TRUSTED_ONLY else [])
 
 
 def discover() -> dict[str, View]:

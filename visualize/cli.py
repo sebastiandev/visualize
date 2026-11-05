@@ -21,7 +21,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from visualize.build import ASSETS, from_facts, render
+from visualize.build import ASSETS, merge_facts_into_page, render
 from visualize.config import load as load_config, repo_root
 from visualize.definitions import definitions, signatures
 from visualize.workspace import default_repo, fetch, use_local
@@ -93,7 +93,8 @@ def explain(doc: Path, facts_dir: Path | None, out: Path | None, keep_versions: 
     root = repo_root()
     use_local(root)
     if facts_dir:
-        repo = repo or from_facts(page, facts_dir)
+        facts_repo = merge_facts_into_page(page, facts_dir)
+        repo = repo or facts_repo
     sources, defs = dict(page.get("sources") or {}), list(page.get("defdiff") or [])
     if facts_dir and page.get("diff"):
         pass  # a change: panels show the diff; cited files are not loaded (they would not be at the change's commit)
@@ -118,6 +119,10 @@ def explain(doc: Path, facts_dir: Path | None, out: Path | None, keep_versions: 
         page["inputs"] = signatures(repo, [d for d in defs if d.get("after")], page.get("head_sha", ""), set(), "")
     html = out or doc.with_suffix(".html")
     html_text = render(page, repo or "")
+    from visualize import views
+    if views.TRUSTED_ONLY:
+        policy = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'"
+        html_text = html_text.replace("<head>", '<head><meta http-equiv="Content-Security-Policy" content="' + policy + '">', 1)
     html.write_text(html_text)
     version = f"  (version v{_snapshot(doc, doc_text, html_text)})" if keep_versions else ""
     print(f"page: {html}{version}")
@@ -158,6 +163,7 @@ def suggest(facts_dir: Path | None, brief: str | None) -> int:
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point."""
     ap = argparse.ArgumentParser(prog="visualize", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--trusted-views-only", action="store_true", help="use only bundled/user views, excluding repository JavaScript; render with a network-blocking CSP")
     sub = ap.add_subparsers(dest="command", required=True)
     fa = sub.add_parser("facts", help="gather facts about a change (--local default, --diff, --pr) or code (--code)")
     src = fa.add_mutually_exclusive_group()
@@ -186,6 +192,8 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("install", help="link this repo into ~/.agents/{tools,skills} and ~/.local/bin")
     sub.add_parser("uninstall", help="remove those links")
     args = ap.parse_args(argv)
+    from visualize import views
+    views.TRUSTED_ONLY = args.trusted_views_only
     if args.command == "views":
         from visualize.views import discover, search_dirs
         for name, view in discover().items():

@@ -78,6 +78,16 @@ Instructions for a coding agent asked to install visualize:
 `facts` options for `--local`/`--diff`: `--title`, `--body-file`, `-o DIR` (default `~/.cache/visualize/<repo>/<key>/facts`).
 `explain` exit codes: `0` ok, `3` the check found something to fix (JSON report), `1` error.
 
+### Embedded PR viewers
+
+Use the global `--trusted-views-only` flag before the command when rendering untrusted PR
+content in another application, e.g. `visualize --trusted-views-only explain doc.json`.
+It excludes repository `.visualize/views/` JavaScript, keeps bundled and user-installed
+views, and adds a network-blocking Content Security Policy to the generated HTML.
+The viewer must still sandbox the page: use an iframe with `sandbox="allow-scripts"`,
+without `allow-same-origin`. Theme, diff and fold controls use in-memory preferences when
+browser storage is unavailable in that sandbox.
+
 ### Minimal examples
 
 **Explain your current changes** (run inside the repo):

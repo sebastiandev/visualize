@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>visualize</title>
-<script>document.documentElement.dataset.theme=localStorage.getItem('theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');</script>
+<script>const storage=(()=>{try{const s=window.localStorage;s.getItem('theme');return s}catch{const m=new Map();return{getItem:k=>m.get(k)??null,setItem:(k,v)=>m.set(k,String(v)),clear:()=>m.clear()}}})();document.documentElement.dataset.theme=storage.getItem('theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');</script>
 <style>
 :root{--paper:#FAF9F5;--card:#fff;--panel:#FDFCF9;--ink:#29261F;--muted:#6E6B62;--faint:#9A968B;--line:#E7E4DA;--soft:#F3F1EA;
  --clay:#C96442;--clay-soft:#F5E6DE;--sage:#5E8C7A;--sage-ink:#2F5A3B;--sage-soft:#E9F0E6;--amber-ink:#8A5D16;--amber-soft:#FBF1E4;--bad:#A0452A;--bad-soft:#F6E3DC;--stone:#8A8578;--lav:#7B6CB5;--lav-soft:#EEEAF6;
@@ -102,7 +102,7 @@ function markRange(html,a,b,cls){if(b<=a)return html;const t=document.createElem
 function diffSpan(a,b){let i=0;while(i<a.length&&i<b.length&&a[i]===b[i])i++;let j=0;while(j<a.length-i&&j<b.length-i&&a[a.length-1-j]===b[b.length-1-j])j++;return [i,j];}
 
 /* ---------- diff rendering (GitHub style, wraps, foldable) ---------- */
-let view=localStorage.getItem('diffView')||'unified';
+let view=storage.getItem('diffView')||'unified';
 function blocks(lines){const out=[];let k=0;while(k<lines.length){if(lines[k].t===' '){out.push({ctx:lines[k++]});continue;}
  const dels=[],adds=[];while(k<lines.length&&lines[k].t==='-')dels.push(lines[k++]);while(k<lines.length&&lines[k].t==='+')adds.push(lines[k++]);out.push({dels,adds});}return out;}
 /** Attach highlighted HTML to every line: old side (context + removed) and new side (context + added) highlighted separately. */
@@ -155,8 +155,8 @@ d3.select('#app').html(`<div class="top">${P.url?`<a href="${P.url}" target="_bl
  <span class="seg"><button id="theme" aria-label="Toggle dark mode">${document.documentElement.dataset.theme==='dark'?'☀ Light':'☾ Dark'}</button></span></div></div>
  <h1>${esc(P.title)}</h1><div class="meta">${P.kind?`<span class="chip kind">${esc(P.kind)}</span>`:''}${P.flag?`<span class="chip flag">⚑ ${esc(P.flag.name)} · ${esc(P.flag.scope)}</span>`:''}</div>
  ${S.map((b,i)=>`<section aria-labelledby="h-v${i}">${b.title?`<h2 id="h-v${i}">${esc(b.title)}</h2>`:''}${b.question?`<p class="q">${esc(b.question)}</p>`:''}<div class="view" id="v${i}" data-view="${esc(b.view)}"></div></section>`).join('')}`);
-d3.selectAll('.tools .seg button[data-v]').on('click',function(){view=this.dataset.v;localStorage.setItem('diffView',view);render();});
-d3.select('#theme').on('click',()=>{const t=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=t;localStorage.setItem('theme',t);d3.select('#theme').text(t==='dark'?'☀ Light':'☾ Dark');});
+d3.selectAll('.tools .seg button[data-v]').on('click',function(){view=this.dataset.v;storage.setItem('diffView',view);render();});
+d3.select('#theme').on('click',()=>{const t=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=t;storage.setItem('theme',t);d3.select('#theme').text(t==='dark'?'☀ Light':'☾ Dark');});
 S.forEach((b,i)=>{const el=document.getElementById('v'+i),fn=VIEWS[b.view];
  if(!fn){el.textContent=`View error: unknown view "${b.view}" (see \`visualize views\`)`;return;}
  try{fn(b,makeCtx(el,b.view,i));}catch(e){el.textContent='View error: '+e.message;}
@@ -166,8 +166,8 @@ makeFoldable();}
 /** Every section header toggles its section; state persists per PR + section. */
 function makeFoldable(){const key=id=>`fold:${P.number}:${id}`;
  document.querySelectorAll('main section').forEach(sec=>{const h=sec.querySelector(':scope>h2');if(!h)return;const id=h.id||h.textContent;
-  const set=c=>{sec.classList.toggle('collapsed',c);h.setAttribute('aria-expanded',String(!c));localStorage.setItem(key(id),c?'1':'0');if(!c)window.dispatchEvent(new Event('resize'));};
-  h.classList.add('fold');h.tabIndex=0;h.setAttribute('role','button');set(localStorage.getItem(key(id))==='1');
+  const set=c=>{sec.classList.toggle('collapsed',c);h.setAttribute('aria-expanded',String(!c));storage.setItem(key(id),c?'1':'0');if(!c)window.dispatchEvent(new Event('resize'));};
+  h.classList.add('fold');h.tabIndex=0;h.setAttribute('role','button');set(storage.getItem(key(id))==='1');
   h.addEventListener('click',()=>set(!sec.classList.contains('collapsed')));h.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();set(!sec.classList.contains('collapsed'));}});
   sec._fold=set;});
  d3.select('#fold-all').on('click',()=>document.querySelectorAll('main section').forEach(s=>s._fold&&s._fold(true)));
